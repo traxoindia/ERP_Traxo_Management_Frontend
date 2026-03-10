@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, RefreshCw, Loader2, CheckCircle, Mail, Lock, User } from "lucide-react";
 import registerIllustration from "../assets/Login.jpeg"; 
 import { register } from "../services/authService";
+import MainNavbar from "./Career/MainNavbar";
 
 function RegistrationPage() {
   const navigate = useNavigate();
@@ -67,6 +68,8 @@ function RegistrationPage() {
   };
 
   return (
+    <>
+      <MainNavbar/>
     <div className="min-h-screen flex items-center justify-center bg-[#f4f7fe] p-4 font-sans">
       {/* Container - Reduced max-width from 1100px to 900px for a "smaller" feel */}
       <motion.div 
@@ -169,6 +172,7 @@ function RegistrationPage() {
         </div>
       </motion.div>
     </div>
+      </>
   );
 }
 

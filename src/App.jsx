@@ -6,6 +6,8 @@ import HrDashboard from "./pages/HR/HrDashboard";
 import RegistrationPage from "./pages/RegistrationPage";
 import Recruitment from "./pages/HR/Recruitment";
 import UserDashboard from "./pages/User/UserDashboard";
+import AddEmployee from "./pages/HR/Employess/AddEmployee";
+import Careers from "./pages/Career/Careers";
 
 function App() {
   return (
@@ -14,6 +16,8 @@ function App() {
         <Route path="/" element={<Login />} />
          <Route path="/register" element={<RegistrationPage />} />
          <Route path="/recruitment" element={<Recruitment />} />
+         <Route path="/employees" element={<AddEmployee />} />
+          <Route path="/careers" element={<Careers />} />
          
 
 
@@ -33,6 +37,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+      
       </Routes>
     </BrowserRouter>
   );

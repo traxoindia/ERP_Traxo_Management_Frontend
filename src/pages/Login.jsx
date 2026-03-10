@@ -5,6 +5,7 @@ import { User, Eye, EyeOff, Lock } from "lucide-react";
 import loginIllustration from "../assets/Login.jpeg";
 
 import { login } from "../services/authService"; // API Service
+import MainNavbar from "./Career/MainNavbar";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -52,6 +53,9 @@ const Login = () => {
 };
 
   return (
+    <>
+      <MainNavbar/>
+  
     <div className="min-h-screen w-full flex items-center justify-center bg-[#f4f7fe] p-4 sm:p-8 font-sans">
 
       <motion.div
@@ -182,6 +186,7 @@ const Login = () => {
         </div>
       </motion.div>
     </div>
+      </>
   );
 };
 
