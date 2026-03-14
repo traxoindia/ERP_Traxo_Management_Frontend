@@ -3,6 +3,7 @@ import NewHireForm from './NewHireForm';
 import CurrentEmployees from './CurrentEmployees';
 import PastEmployees from './PastEmployees';
 import NewHiresList from './NewHiresList';
+import BackNavbar from '../../Career/BackNavbar';
 
 export default function AddEmployee() {
   const [activeTab, setActiveTab] = useState('new');
@@ -10,9 +11,9 @@ export default function AddEmployee() {
 
   const tabs = [
     { id: 'new', label: '➕ New Hire' },
-    { id: 'new-hires', label: '📋 New Hires List' },
-    { id: 'current', label: '✅ Current Employees' },
-    { id: 'past', label: '📜 Past Employees' },
+    { id: 'new-hires', label: 'New Hires List' },
+    { id: 'current', label: ' Current Employees' },
+    { id: 'past', label: 'Past Employees' },
   ];
 
   const handleTabChange = (tabId) => {
@@ -21,6 +22,8 @@ export default function AddEmployee() {
   };
 
   return (
+    <>
+    <BackNavbar/>
     <div className="min-h-screen w-full bg-gray-50 flex flex-col">
       <header className="bg-white border-b border-gray-200 px-8 py-6">
         <h1 className="text-3xl font-extrabold text-gray-900">Employee Management System</h1>
@@ -56,5 +59,7 @@ export default function AddEmployee() {
         </div>
       </main>
     </div>
+    </>
   );
+
 }

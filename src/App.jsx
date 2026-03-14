@@ -8,18 +8,26 @@ import Recruitment from "./pages/HR/Recruitment";
 import UserDashboard from "./pages/User/UserDashboard";
 import AddEmployee from "./pages/HR/Employess/AddEmployee";
 import Careers from "./pages/Career/Careers";
+import PostJobPage from "./pages/Career/PostJobPage";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
-         <Route path="/register" element={<RegistrationPage />} />
-         <Route path="/recruitment" element={<Recruitment />} />
-         <Route path="/employees" element={<AddEmployee />} />
-          <Route path="/careers" element={<Careers />} />
-         
+        <Route path="/register" element={<RegistrationPage />} />
+        <Route path="/recruitment" element={<Recruitment />} />
+        <Route path="/employees" element={<AddEmployee />} />
+        <Route path="/careers" element={<Careers />} />
 
+      <Route
+  path="/jobs/post"
+  element={
+    <ProtectedRoute roles={["HR", "ADMIN"]}>
+      <PostJobPage />
+    </ProtectedRoute>
+  }
+/>
 
         <Route
           path="/hr-dashboard"
@@ -33,11 +41,11 @@ function App() {
           path="/user-dashboard"
           element={
             <ProtectedRoute role="USER">
-              <UserDashboard/>
+              <UserDashboard />
             </ProtectedRoute>
           }
         />
-      
+
       </Routes>
     </BrowserRouter>
   );

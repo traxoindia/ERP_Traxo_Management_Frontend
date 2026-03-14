@@ -38,9 +38,11 @@ const Login = () => {
     localStorage.setItem("accessToken", data.accessToken);
     localStorage.setItem("refreshToken", data.refreshToken);
     localStorage.setItem("role", role);
+   
 
     if (role === "ADMIN") {
-      navigate("/admin-dashboard");
+      console.log("first")
+      navigate("/jobs/post");
     } else if (role === "HR") {
       navigate("/hr-dashboard");
     } else {
