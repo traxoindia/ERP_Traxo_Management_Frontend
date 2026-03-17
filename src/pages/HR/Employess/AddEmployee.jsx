@@ -31,7 +31,7 @@ export default function AddEmployee() {
       </header>
 
       <main className="flex-1 p-8">
-        <div className="max-w-7xl mx-auto bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
+        <div className="max-w-full mx-auto bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
           {/* Tab Navigation */}
           <div className="flex bg-gray-50 border-b border-gray-200">
             {tabs.map((tab) => (

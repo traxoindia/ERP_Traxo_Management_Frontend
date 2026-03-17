@@ -4,33 +4,25 @@ import {
   Plus, 
   Search, 
   X, 
-  MoreHorizontal, 
-  Filter,
   Loader2,
   AlertCircle,
   Download,
-  Calendar,
-  MapPin,
-  Briefcase,
   Mail,
   Phone,
-  User,
-  GraduationCap,
-  Award,
-  FileText,
-  DollarSign,
-  Clock,
-  Globe,
   ChevronLeft,
-  ChevronRight,
-  ExternalLink
+  UserCheck,
+  UserX,
+  UserPlus,
+  Eye
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import BackNavbar from "./BackNavbar";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE = "https://api.wemis.in/api/careers";
 
 const PostJobPage = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("posted");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -140,7 +132,6 @@ const PostJobPage = () => {
       
       console.log("Applicants API Response:", response.data);
       
-      // Handle different response structures
       const applicantsData = response.data?.data || response.data;
       setApplicants(Array.isArray(applicantsData) ? applicantsData : []);
       
@@ -150,6 +141,104 @@ const PostJobPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Move candidate to Screening - API CALL
+  // PUT /api/careers/applications/{id}/screening
+  const handleMoveToScreening = async (applicant, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    setLoading(true);
+    const token = localStorage.getItem("accessToken");
+
+    try {
+      // API Call to move candidate to screening
+      const response = await axios.put(`${API_BASE}/applications/${applicant.id}/screening`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      console.log("Screening API Response:", response.data);
+      // Response should be: { "stage": "SCREENING" }
+
+      // Update local state with new status from DB
+      setApplicants(prevApplicants => 
+        prevApplicants.map(app => 
+          app.id === applicant.id 
+            ? { ...app, status: "SCREENING" } 
+            : app
+        )
+      );
+
+      if (selectedApplicant && selectedApplicant.id === applicant.id) {
+        setSelectedApplicant(prev => ({ ...prev, status: "SCREENING" }));
+      }
+
+      alert(`${applicant.fullName} has been moved to Screening stage`);
+      
+    } catch (err) {
+      console.error("Move to Screening Error:", err);
+      alert("Failed to move applicant to screening. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reject candidate - API CALL
+  // PUT /api/careers/applications/{id}/stage?stage=REJECTED
+  const handleRejectCandidate = async (applicant, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    if (!window.confirm(`Are you sure you want to reject ${applicant.fullName}?`)) {
+      return;
+    }
+    
+    setLoading(true);
+    const token = localStorage.getItem("accessToken");
+
+    try {
+      // API Call to reject candidate
+      const response = await axios.put(`${API_BASE}/applications/${applicant.id}/stage?stage=REJECTED`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      console.log("Reject API Response:", response.data);
+
+      // Update local state
+      setApplicants(prevApplicants => 
+        prevApplicants.map(app => 
+          app.id === applicant.id 
+            ? { ...app, status: "REJECTED" } 
+            : app
+        )
+      );
+
+      if (selectedApplicant && selectedApplicant.id === applicant.id) {
+        setSelectedApplicant(prev => ({ ...prev, status: "REJECTED" }));
+      }
+
+      alert(`${applicant.fullName} has been rejected`);
+      
+    } catch (err) {
+      console.error("Reject Candidate Error:", err);
+      alert("Failed to reject applicant. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Navigate to Interviews page
+  const goToInterviews = () => {
+    navigate('/jobs/interviews');
   };
 
   const viewApplicantDetails = (applicant) => {
@@ -173,13 +262,11 @@ const PostJobPage = () => {
 
   const getResumeUrl = (cvFileUrl) => {
     if (!cvFileUrl) return null;
-    // If it's a full URL, use it directly, otherwise assume it's a filename
     if (cvFileUrl.startsWith('http')) return cvFileUrl;
-    // You might need to construct the full URL based on your storage
     return `${API_BASE}/resumes/${cvFileUrl}`;
   };
 
-  const downloadResume = (cvFileUrl, fileName) => {
+  const downloadResume = (cvFileUrl) => {
     const url = getResumeUrl(cvFileUrl);
     if (url) {
       window.open(url, '_blank');
@@ -198,6 +285,28 @@ const PostJobPage = () => {
     app.currentAddress?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Get status badge color based on status from DB
+  const getStatusBadge = (status) => {
+    switch(status) {
+      case 'APPLIED':
+        return 'bg-green-50 text-green-700';
+      case 'SCREENING':
+        return 'bg-purple-50 text-purple-700';
+      case 'HR_ROUND':
+        return 'bg-blue-50 text-blue-700';
+      case 'TECHNICAL_ROUND':
+        return 'bg-indigo-50 text-indigo-700';
+      case 'MANAGERIAL_ROUND':
+        return 'bg-orange-50 text-orange-700';
+      case 'SELECTED':
+        return 'bg-emerald-50 text-emerald-700';
+      case 'REJECTED':
+        return 'bg-red-50 text-red-700';
+      default:
+        return 'bg-gray-50 text-gray-600';
+    }
+  };
+
   return (
     <>
       <BackNavbar />
@@ -205,7 +314,7 @@ const PostJobPage = () => {
       <div className="min-h-screen bg-white text-gray-900 font-sans antialiased">
         {/* HEADER */}
         <div className="border-b border-gray-100 px-6 py-6">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="max-w-full mx-auto flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="flex items-center gap-4">
               {activeTab === "applicants" && viewMode === "detail" && (
                 <button 
@@ -229,19 +338,30 @@ const PostJobPage = () => {
               </div>
             </div>
 
-            {activeTab === "posted" && (
+            <div className="flex items-center gap-3">
+              {activeTab === "posted" && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="inline-flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all"
+                >
+                  <Plus size={14} />
+                  Post Position
+                </button>
+              )}
+              
+              {/* Interview Dashboard Button */}
               <button
-                onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all"
+                onClick={goToInterviews}
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all"
               >
-                <Plus size={14} />
-                Post Position
+                <UserCheck size={14} />
+                Interview Dashboard
               </button>
-            )}
+            </div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="max-w-full mx-auto px-6 py-8">
           {/* TABS */}
           <div className="flex items-center gap-8 border-b border-gray-100 mb-8">
             <button
@@ -322,7 +442,7 @@ const PostJobPage = () => {
                       <tr className="text-[10px] text-gray-400 uppercase tracking-widest">
                         <th className="px-6 py-4 font-bold">Job Title / Role</th>
                         <th className="px-6 py-4 font-bold">Location</th>
-                        <th className="px-6 py-4 font-bold">ID</th>
+                        <th className="px-6 py-4 font-bold">Position</th>
                         <th className="px-6 py-4 font-bold text-right">Action</th>
                       </tr>
                     </thead>
@@ -331,10 +451,9 @@ const PostJobPage = () => {
                         <tr key={job.id} className="hover:bg-gray-50/50 transition-colors group">
                           <td className="px-6 py-5">
                             <p className="font-bold text-black uppercase tracking-tight">{job.jobTitle || "Untitled Position"}</p>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-tighter mt-0.5">{job.position || "Not Specified"}</p>
                           </td>
-                          <td className="px-6 py-5 text-gray-500 uppercase tracking-wider">{job.location || "Remote"}</td>
-                          <td className="px-6 py-5 text-gray-400 font-mono text-[10px]">{job.id}</td>
+                          <td className="px-6 py-5 text-gray-900 uppercase tracking-wider">{job.location || "Remote"}</td>
+                          <td className="px-6 py-5 text-[10px] text-gray-900 uppercase tracking-tighter">{job.position || "Not Specified"}</td>
                           <td className="px-6 py-5 text-right">
                             <button 
                               onClick={() => fetchApplicants(job)}
@@ -369,12 +488,13 @@ const PostJobPage = () => {
                         <th className="px-6 py-4 font-bold">Contact</th>
                         <th className="px-6 py-4 font-bold">Experience</th>
                         <th className="px-6 py-4 font-bold">Applied Date</th>
+                        <th className="px-6 py-4 font-bold">Status</th>
                         <th className="px-6 py-4 font-bold text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 text-xs">
                       {filteredApplicants.length > 0 ? filteredApplicants.map((app, i) => (
-                        <tr key={app.id || i} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => viewApplicantDetails(app)}>
+                        <tr key={app.id || i} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-6 py-5">
                             <p className="font-bold text-black uppercase tracking-tight">{app.fullName || "Unnamed Applicant"}</p>
                             <p className="text-[10px] text-gray-400 mt-0.5">{app.currentJobTitle || "Position not specified"}</p>
@@ -385,21 +505,58 @@ const PostJobPage = () => {
                           </td>
                           <td className="px-6 py-5 text-gray-600">{app.totalExperience || "0"} years</td>
                           <td className="px-6 py-5 text-gray-400 text-[10px]">{formatDate(app.appliedAt)}</td>
+                          <td className="px-6 py-5">
+                            <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusBadge(app.stage)}`}>
+                              {app.stage || "APPLIED"}
+                            </span>
+                          </td>
                           <td className="px-6 py-5 text-right">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                viewApplicantDetails(app);
-                              }}
-                              className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 hover:bg-black hover:text-white transition-all"
-                            >
-                              View Profile
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              {/* VIEW PROFILE BUTTON */}
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  viewApplicantDetails(app);
+                                }}
+                                className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 hover:bg-black hover:text-white transition-all flex items-center gap-1"
+                              >
+                                <Eye size={12} />
+                                View Profile
+                              </button>
+                              
+                              {/* SCREENING BUTTON - Uses the screening API */}
+                              <button 
+                                onClick={(e) => handleMoveToScreening(app, e)}
+                                disabled={app.status === 'SCREENING' || app.status === 'REJECTED' || app.status === 'SELECTED' || app.status === 'HR_ROUND' || app.status === 'TECHNICAL_ROUND' || app.status === 'MANAGERIAL_ROUND'}
+                                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 transition-all flex items-center gap-1 ${
+                                  app.status === 'SCREENING' || app.status === 'REJECTED' || app.status === 'SELECTED' || app.status === 'HR_ROUND' || app.status === 'TECHNICAL_ROUND' || app.status === 'MANAGERIAL_ROUND'
+                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                                }`}
+                              >
+                                <UserPlus size={12} />
+                                {app.status === 'SCREENING' ? 'In Screening' : 'Screening'}
+                              </button>
+                              
+                              {/* REJECT BUTTON */}
+                              <button 
+                                onClick={(e) => handleRejectCandidate(app, e)}
+                                disabled={app.status === 'REJECTED' || app.status === 'SELECTED'}
+                                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 transition-all flex items-center gap-1 ${
+                                  app.status === 'REJECTED' || app.status === 'SELECTED'
+                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    : 'bg-red-600 text-white hover:bg-red-700'
+                                }`}
+                              >
+                                <UserX size={12} />
+                                {app.status === 'REJECTED' ? 'Rejected' : 'Reject'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="5" className="px-6 py-10 text-center text-gray-400 italic">
+                          <td colSpan="6" className="px-6 py-10 text-center text-gray-400 italic">
                             {searchTerm ? "No matching applicants found." : "No applications found for this role."}
                           </td>
                         </tr>
@@ -426,15 +583,52 @@ const PostJobPage = () => {
                           <span className="flex items-center gap-1"><Phone size={12} /> {selectedApplicant.phoneNumber}</span>
                         </div>
                       </div>
-                      {selectedApplicant.cvFileUrl && (
-                        <button
-                          onClick={() => downloadResume(selectedApplicant.cvFileUrl, selectedApplicant.cvFileUrl)}
-                          className="flex items-center gap-2 bg-black text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all"
+                      <div className="flex items-center gap-3">
+                        {selectedApplicant.cvFileUrl && (
+                          <button
+                            onClick={() => downloadResume(selectedApplicant.cvFileUrl)}
+                            className="flex items-center gap-2 bg-black text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all"
+                          >
+                            <Download size={14} />
+                            Download Resume
+                          </button>
+                        )}
+                        
+                        {/* SCREENING BUTTON - In detail view */}
+                        <button 
+                          onClick={(e) => handleMoveToScreening(selectedApplicant, e)}
+                          disabled={selectedApplicant.status === 'SCREENING' || selectedApplicant.status === 'REJECTED' || selectedApplicant.status === 'SELECTED' || selectedApplicant.status === 'HR_ROUND' || selectedApplicant.status === 'TECHNICAL_ROUND' || selectedApplicant.status === 'MANAGERIAL_ROUND'}
+                          className={`flex items-center gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
+                            selectedApplicant.status === 'SCREENING' || selectedApplicant.status === 'REJECTED' || selectedApplicant.status === 'SELECTED' || selectedApplicant.status === 'HR_ROUND' || selectedApplicant.status === 'TECHNICAL_ROUND' || selectedApplicant.status === 'MANAGERIAL_ROUND'
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-purple-600 text-white hover:bg-purple-700'
+                          }`}
                         >
-                          <Download size={14} />
-                          Download Resume
+                          <UserPlus size={14} />
+                          {selectedApplicant.status === 'SCREENING' ? 'Already in Screening' : 'Move to Screening'}
                         </button>
-                      )}
+                        
+                        {/* REJECT BUTTON - In detail view */}
+                        <button 
+                          onClick={(e) => handleRejectCandidate(selectedApplicant, e)}
+                          disabled={selectedApplicant.status === 'REJECTED' || selectedApplicant.status === 'SELECTED'}
+                          className={`flex items-center gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
+                            selectedApplicant.status === 'REJECTED' || selectedApplicant.status === 'SELECTED'
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-red-600 text-white hover:bg-red-700'
+                          }`}
+                        >
+                          <UserX size={14} />
+                          {selectedApplicant.status === 'REJECTED' ? 'Already Rejected' : 'Reject Candidate'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Status Badge - Shows current status from DB */}
+                    <div className="mb-6">
+                      <span className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${getStatusBadge(selectedApplicant.status)}`}>
+                        Current Status: {selectedApplicant.status || "APPLIED"}
+                      </span>
                     </div>
 
                     {/* Personal Information */}
@@ -552,11 +746,6 @@ const PostJobPage = () => {
                     <div className="mt-8 pt-6 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-400">
                       <span>Application ID: {selectedApplicant.id}</span>
                       <span>Applied: {formatDate(selectedApplicant.appliedAt)}</span>
-                      <span className={`px-2 py-1 ${
-                        selectedApplicant.status === 'APPLIED' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'
-                      }`}>
-                        {selectedApplicant.status || "APPLIED"}
-                      </span>
                     </div>
                   </motion.div>
                 )}

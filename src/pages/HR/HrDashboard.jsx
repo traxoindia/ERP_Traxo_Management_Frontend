@@ -1,31 +1,65 @@
-import React from "react";
-import { Users, UserCheck, Clock, MoreHorizontal, Plus } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Users, UserCheck, Clock, Plus, Loader } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import Sidebar from "../../components/Sidebar";
 
-const StatCard = ({ title, value, icon: Icon }) => (
+const StatCard = ({ title, value, icon: Icon, loading }) => (
   <div className="bg-white border rounded-lg p-5 flex justify-between items-center">
     <div>
       <p className="text-sm text-gray-500">{title}</p>
-      <h2 className="text-2xl font-semibold">{value}</h2>
+      {loading ? (
+        <div className="h-8 w-12 bg-gray-100 animate-pulse rounded mt-1" />
+      ) : (
+        <h2 className="text-2xl font-semibold">{value}</h2>
+      )}
     </div>
     <Icon size={24} className="text-gray-600" />
   </div>
 );
 
 const HrDashboard = () => {
-  const employees = [
-    { name: "Ankit Duhai", dept: "Product Design", status: "Active", img: "https://i.pravatar.cc/150?u=1" },
-    { name: "Rahul Sharma", dept: "Engineering", status: "Pending", img: "https://i.pravatar.cc/150?u=2" },
-    { name: "Priya Singh", dept: "Marketing", status: "Active", img: "https://i.pravatar.cc/150?u=3" },
-    { name: "Sanya Verma", dept: "Operations", status: "Active", img: "https://i.pravatar.cc/150?u=4" },
-  ];
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const events = [
-    { title: "Holi Festival", date: "Mar 14", desc: "Public Holiday" },
-    { title: "Quarterly Review", date: "Mar 18", desc: "All Hands Meeting" },
-    { title: "Ramadan Start", date: "Mar 20", desc: "Optional Half-day" },
-  ];
+  // Helper to get token (Update this based on your auth logic)
+  const getToken = () => localStorage.getItem("accessToken");
+
+  const fetchCurrent = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://api.wemis.in/api/hr/employees/status/CURRENT', {
+        headers: { 
+          'Authorization': `Bearer ${getToken()}`,
+          'Accept': 'application/json'
+        }
+      });
+      if (response.status === 403) {
+        alert('Session expired. Please login again.');
+        // Optional: window.location.href = "/login";
+        return;
+      }
+      
+      const data = await response.json();
+      // Adjusting based on common API structures (e.g., if data is wrapped in a .data property)
+      const empList = Array.isArray(data) ? data : (data.data || []);
+      setEmployees(empList);
+    } catch (error) {
+      console.error("Fetch error:", error);
+      alert('Failed to fetch employees');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCurrent();
+  }, []);
+
+  // Calculate dynamic stats
+  const totalStaff = employees.length;
+  // If your API provides an 'onDuty' or 'attendance' status, filter it here
+  // For now, using placeholders as requested
+  const onDutyCount = employees.filter(emp => emp.onDuty === true).length || 0; 
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -43,89 +77,47 @@ const HrDashboard = () => {
               <p className="text-gray-500 text-sm">Overview for March 2026</p>
             </div>
 
-            <button className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md text-sm">
+            <button className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition-colors">
               <Plus size={16} />
               Add Employee
             </button>
           </div>
 
-          {/* Stats */}
+          {/* Stats Section */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard title="Total Staff" value="0" icon={Users} />
-            <StatCard title="On Duty" value="0" icon={UserCheck} />
-            <StatCard title="Leave Requests" value="0" icon={Clock} />
+            <StatCard 
+              title="Total Staff" 
+              value={totalStaff} 
+              icon={Users} 
+              loading={loading}
+            />
+            <StatCard 
+              title="On Duty" 
+              value={onDutyCount} 
+              icon={UserCheck} 
+              loading={loading}
+            />
+            <StatCard 
+              title="Leave Requests" 
+              value="0" 
+              icon={Clock} 
+              loading={loading}
+            />
           </div>
 
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            {/* Employee Table */}
-            <div className="lg:col-span-2 bg-white border rounded-lg">
-              <div className="p-4 border-b">
-                <h3 className="font-medium">Recent Employees</h3>
-              </div>
-
-              <table className="w-full text-sm">
-                <thead className="text-gray-500 border-b">
-                  <tr>
-                    <th className="p-4 text-left">Employee</th>
-                    <th className="p-4 text-left">Department</th>
-                    <th className="p-4 text-left">Status</th>
-                    <th className="p-4"></th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {employees.map((emp, i) => (
-                    <tr key={i} className="border-b last:border-none">
-                      <td className="p-4 flex items-center gap-3">
-                        <img
-                          src={emp.img}
-                          alt=""
-                          className="w-8 h-8 rounded-full"
-                        />
-                        {emp.name}
-                      </td>
-
-                      <td className="p-4 text-gray-600">{emp.dept}</td>
-
-                      <td className="p-4">
-                        <span
-                          className={`px-2 py-1 text-xs rounded ${
-                            emp.status === "Active"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {emp.status}
-                        </span>
-                      </td>
-
-                      <td className="p-4 text-right">
-                        <MoreHorizontal size={18} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Placeholder for future sections */}
+          {!loading && employees.length === 0 && (
+            <div className="bg-white border rounded-lg p-12 text-center">
+              <Users className="mx-auto text-gray-300 mb-4" size={48} />
+              <p className="text-gray-500">No employee data available.</p>
             </div>
+          )}
 
-            {/* Events */}
-            <div className="bg-white border rounded-lg p-4">
-              <h3 className="font-medium mb-4">Upcoming Events</h3>
-
-              <div className="space-y-4">
-                {events.map((event, i) => (
-                  <div key={i}>
-                    <p className="font-medium">{event.title}</p>
-                    <p className="text-sm text-gray-500">{event.date}</p>
-                    <p className="text-xs text-gray-400">{event.desc}</p>
-                  </div>
-                ))}
-              </div>
+          {loading && (
+            <div className="flex justify-center py-12">
+              <Loader className="animate-spin text-gray-400" />
             </div>
-
-          </div>
+          )}
 
         </main>
       </div>

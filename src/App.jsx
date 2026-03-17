@@ -9,6 +9,7 @@ import UserDashboard from "./pages/User/UserDashboard";
 import AddEmployee from "./pages/HR/Employess/AddEmployee";
 import Careers from "./pages/Career/Careers";
 import PostJobPage from "./pages/Career/PostJobPage";
+import Interviews from "./pages/Career/Interviews";
 
 function App() {
   return (
@@ -25,6 +26,15 @@ function App() {
   element={
     <ProtectedRoute roles={["HR", "ADMIN"]}>
       <PostJobPage />
+    </ProtectedRoute>
+  }
+/>
+
+  <Route
+  path="/jobs/interviews"
+  element={
+    <ProtectedRoute roles={["HR", "ADMIN"]}>
+      <Interviews />
     </ProtectedRoute>
   }
 />

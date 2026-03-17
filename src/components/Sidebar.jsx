@@ -4,42 +4,102 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, Users, CalendarCheck, Briefcase, 
   FileText, CreditCard, Settings, ChevronLeft, Menu,
-  X
+  X, ChevronDown
 } from "lucide-react";
 
-const SidebarItem = ({ icon: Icon, label, path, active, isCollapsed, onClick, isMobile }) => (
-  <motion.div
-    onClick={() => onClick(path)}
-    className={`flex items-center p-3 mb-1 rounded-lg cursor-pointer transition-all relative group ${
-      active 
-        ? "bg-black text-white" 
-        : "text-gray-500 hover:bg-gray-100 hover:text-black"
-    }`}
-  >
-    <div className="flex items-center justify-center min-w-[24px]">
-      <Icon size={20} strokeWidth={active ? 2.5 : 2} />
+const SidebarItem = ({ 
+  icon: Icon, label, path, active, isCollapsed, onClick, isMobile, subItems 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const hasSubItems = subItems && subItems.length > 0;
+
+  // Sync open state if a child is active
+  useEffect(() => {
+    if (active && hasSubItems) setIsOpen(true);
+  }, [active, hasSubItems]);
+
+  const handleToggle = (e) => {
+    if (hasSubItems) {
+      e.stopPropagation();
+      setIsOpen(!isOpen);
+    } else {
+      onClick(path);
+    }
+  };
+
+  return (
+    <div className="mb-1">
+      <motion.div
+        onClick={handleToggle}
+        className={`flex items-center p-3 rounded-lg cursor-pointer transition-all relative group ${
+          active && !hasSubItems
+            ? "bg-black text-white" 
+            : "text-gray-500 hover:bg-gray-100 hover:text-black"
+        }`}
+      >
+        <div className="flex items-center justify-center min-w-[24px]">
+          <Icon size={20} strokeWidth={active ? 2.5 : 2} />
+        </div>
+
+        <AnimatePresence>
+          {(isMobile || !isCollapsed) && (
+            <motion.div
+              initial={{ opacity: 0, x: -5 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -5 }}
+              className="ml-4 flex items-center justify-between flex-1"
+            >
+              <span className="font-medium text-sm tracking-tight whitespace-nowrap">
+                {label}
+              </span>
+              {hasSubItems && (
+                <motion.div
+                  animate={{ rotate: isOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronDown size={14} />
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Tooltip for collapsed mode */}
+        {isCollapsed && !isMobile && (
+          <div className="absolute left-14 bg-black text-white text-[10px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap uppercase tracking-widest">
+            {label}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Dropdown Sub-items */}
+      <AnimatePresence>
+        {isOpen && (isMobile || !isCollapsed) && hasSubItems && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden ml-9 mt-1 space-y-1"
+          >
+            {subItems.map((sub) => (
+              <div
+                key={sub.path}
+                onClick={() => onClick(sub.path)}
+                className={`p-2 text-sm rounded-md cursor-pointer transition-colors ${
+                  active && sub.path === window.location.pathname
+                    ? "text-black font-bold"
+                    : "text-gray-400 hover:text-black hover:bg-gray-50"
+                }`}
+              >
+                {sub.label}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-
-    <AnimatePresence>
-      {(isMobile || !isCollapsed) && (
-        <motion.span
-          initial={!isMobile ? { opacity: 0, x: -5 } : false}
-          animate={!isMobile ? { opacity: 1, x: 0 } : false}
-          exit={!isMobile ? { opacity: 0, x: -5 } : false}
-          className="ml-4 font-medium text-sm tracking-tight whitespace-nowrap"
-        >
-          {label}
-        </motion.span>
-      )}
-    </AnimatePresence>
-
-    {isCollapsed && !isMobile && !active && (
-      <div className="absolute left-14 bg-black text-white text-[10px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap uppercase tracking-widest">
-        {label}
-      </div>
-    )}
-  </motion.div>
-);
+  );
+};
 
 function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -64,7 +124,15 @@ function Sidebar() {
     { label: "Dashboard", icon: LayoutDashboard, path: "/hr-dashboard" },
     { label: "Employees", icon: Users, path: "/employees" },
     { label: "Attendance", icon: CalendarCheck, path: "/attendance" },
-    { label: "Recruitment", icon: Briefcase, path: "/recruitment" },
+    { 
+      label: "Recruitment", 
+      icon: Briefcase, 
+      path: "/jobs",
+      subItems: [
+        { label: "Applicants", path: "/jobs/post" },
+        { label: "Interviews", path: "/jobs/interviews" },
+      ]
+    },
     { label: "Payroll", icon: CreditCard, path: "/payroll" },
     { label: "Reports", icon: FileText, path: "/reports" },
   ];
@@ -86,7 +154,6 @@ function Sidebar() {
 
   return (
     <>
-      {/* Mobile Floating Menu Toggle */}
       {isMobile && !isMobileOpen && (
         <button
           onClick={() => setIsMobileOpen(true)}
@@ -110,10 +177,8 @@ function Sidebar() {
         }`}
         style={{ width: isMobile ? '260px' : undefined }}
       >
-        {/* Header */}
         <div className={`flex items-center mb-8 ${!isMobile && isCollapsed ? "justify-center" : "justify-between"}`}>
           <div className="flex items-center gap-3">
-            
             {(isMobile || !isCollapsed) && (
               <span className="text-lg font-black tracking-tighter text-black uppercase">Traxo</span>
             )}
@@ -135,7 +200,6 @@ function Sidebar() {
           )}
         </div>
 
-        {/* Navigation */}
         <div className="flex-1 space-y-1">
           {menuItems.map((item) => (
             <SidebarItem
@@ -143,13 +207,12 @@ function Sidebar() {
               {...item}
               isCollapsed={isCollapsed}
               isMobile={isMobile}
-              active={location.pathname === item.path}
+              active={location.pathname.startsWith(item.path)}
               onClick={handleItemClick}
             />
           ))}
         </div>
 
-        {/* Footer */}
         <div className="pt-4 border-t border-gray-100">
           <SidebarItem 
             icon={Settings} 
