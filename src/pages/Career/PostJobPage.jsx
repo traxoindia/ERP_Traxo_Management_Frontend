@@ -123,12 +123,13 @@ const PostJobPage = () => {
     const token = localStorage.getItem("accessToken");
 
     try {
-      const response = await axios.get(`${API_BASE}/applications/${job.id}`, {
+      const response = await axios.get(`${API_BASE}/applications/job/${job.id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         }
       });
+      console.log("first")
       
       console.log("Applicants API Response:", response.data);
       

@@ -4,13 +4,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, Users, CalendarCheck, Briefcase, 
   FileText, CreditCard, Settings, ChevronLeft, Menu,
-  X, ChevronDown
+  X, ChevronDown, Receipt, DollarSign, Calculator,
+  UserCircle, Wallet, Download, BarChart
 } from "lucide-react";
 
 const SidebarItem = ({ 
   icon: Icon, label, path, active, isCollapsed, onClick, isMobile, subItems 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
   const hasSubItems = subItems && subItems.length > 0;
 
   // Sync open state if a child is active
@@ -26,6 +28,9 @@ const SidebarItem = ({
       onClick(path);
     }
   };
+
+  // Check if any sub-item is active
+  const isSubItemActive = (subPath) => location.pathname === subPath;
 
   return (
     <div className="mb-1">
@@ -85,12 +90,13 @@ const SidebarItem = ({
               <div
                 key={sub.path}
                 onClick={() => onClick(sub.path)}
-                className={`p-2 text-sm rounded-md cursor-pointer transition-colors ${
-                  active && sub.path === window.location.pathname
-                    ? "text-black font-bold"
+                className={`p-2 text-sm rounded-md cursor-pointer transition-colors flex items-center gap-2 ${
+                  isSubItemActive(sub.path)
+                    ? "text-black font-bold bg-gray-50"
                     : "text-gray-400 hover:text-black hover:bg-gray-50"
                 }`}
               >
+                {sub.icon && <sub.icon size={14} />}
                 {sub.label}
               </div>
             ))}
@@ -121,25 +127,73 @@ function Sidebar() {
   }, []);
 
   const menuItems = [
-    { label: "Dashboard", icon: LayoutDashboard, path: "/hr-dashboard" },
-    { label: "Employees", icon: Users, path: "/employees" },
-    { label: "Attendance", icon: CalendarCheck, path: "/attendance" },
+    { 
+      label: "Dashboard", 
+      icon: LayoutDashboard, 
+      path: "/hr-dashboard" 
+    },
+    { 
+      label: "Employees", 
+      icon: Users, 
+      path: "/employees" 
+    },
+    { 
+      label: "Attendance", 
+      icon: CalendarCheck, 
+      path: "/attendance",
+      subItems: [
+        { label: "Calendar", path: "/attendance/calendar", icon: CalendarCheck },
+        { label: "Employee Attendance", path: "/attendance/employee", icon: Users },
+        { label: "Leave Management", path: "/attendance/leave", icon: FileText },
+        { label: "Reports", path: "/attendance/reports", icon: BarChart },
+      ]
+    },
     { 
       label: "Recruitment", 
       icon: Briefcase, 
       path: "/jobs",
       subItems: [
-        { label: "Applicants", path: "/jobs/post" },
-        { label: "Interviews", path: "/jobs/interviews" },
+        { label: "Post Job", path: "/jobs/post", icon: Briefcase },
+        { label: "Interviews", path: "/jobs/interviews", icon: UserCircle },
       ]
     },
-    { label: "Payroll", icon: CreditCard, path: "/payroll" },
-    { label: "Reports", icon: FileText, path: "/reports" },
+    { 
+      label: "Payroll", 
+      icon: CreditCard, 
+      path: "/payroll",
+      subItems: [
+        { label: "Dashboard", path: "/payroll/dashboard", icon: LayoutDashboard },
+        { label: "Salary Structure", path: "/payroll/salary-structure", icon: Calculator },
+        { label: "Process Payroll", path: "/payroll/processing", icon: DollarSign },
+        { label: "Employee Salaries", path: "/payroll/employee-salaries", icon: Users },
+        { label: "Payslips", path: "/payroll/payslips", icon: FileText },
+        { label: "Tax Management", path: "/payroll/tax", icon: Receipt },
+        { label: "Reimbursements", path: "/payroll/reimbursements", icon: Wallet },
+        { label: "Bank Exports", path: "/payroll/exports", icon: Download },
+      ]
+    },
+    { 
+      label: "Reports", 
+      icon: FileText, 
+      path: "/reports" ,
+      subItems: [
+        { label: "Offer Letter", path: "/jobs/OfferLetter", icon: Briefcase },
+        { label: "Experience Letter", path: "/jobs/ExperienceLetter", icon: UserCircle },
+      ]
+    },
   ];
 
   const handleItemClick = (path) => {
     navigate(path);
     if (isMobile) setIsMobileOpen(false);
+  };
+
+  // Check if any main item is active
+  const isItemActive = (item) => {
+    if (item.subItems) {
+      return item.subItems.some(sub => location.pathname === sub.path);
+    }
+    return location.pathname === item.path;
   };
 
   const MobileOverlay = () => (
@@ -157,7 +211,7 @@ function Sidebar() {
       {isMobile && !isMobileOpen && (
         <button
           onClick={() => setIsMobileOpen(true)}
-          className="fixed bottom-6 right-6 z-50 md:hidden bg-black text-white p-4 rounded-full shadow-2xl"
+          className="fixed bottom-6 right-6 z-50 md:hidden bg-black text-white p-4 rounded-full shadow-2xl hover:bg-gray-800 transition-colors"
         >
           <Menu size={24} />
         </button>
@@ -173,14 +227,22 @@ function Sidebar() {
           : { width: isCollapsed ? "80px" : "260px" }
         }
         className={`bg-white border-r border-gray-200 flex flex-col p-4 z-50 ${
-          isMobile ? 'fixed inset-y-0 left-0' : 'sticky top-0 h-screen'
+          isMobile ? 'fixed inset-y-0 left-0 shadow-2xl' : 'sticky top-0 h-screen'
         }`}
         style={{ width: isMobile ? '260px' : undefined }}
       >
         <div className={`flex items-center mb-8 ${!isMobile && isCollapsed ? "justify-center" : "justify-between"}`}>
           <div className="flex items-center gap-3">
             {(isMobile || !isCollapsed) && (
-              <span className="text-lg font-black tracking-tighter text-black uppercase">Traxo</span>
+              <div className="flex items-center gap-2">
+               
+                <span className="text-lg font-black tracking-tighter text-black">TRAXO</span>
+              </div>
+            )}
+            {isCollapsed && !isMobile && (
+              <div className="">
+               
+              </div>
             )}
           </div>
 
@@ -194,26 +256,32 @@ function Sidebar() {
           )}
 
           {isMobile && (
-            <button onClick={() => setIsMobileOpen(false)} className="text-gray-400">
+            <button 
+              onClick={() => setIsMobileOpen(false)} 
+              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400"
+            >
               <X size={20} />
             </button>
           )}
         </div>
 
-        <div className="flex-1 space-y-1">
+        <div className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
           {menuItems.map((item) => (
             <SidebarItem
               key={item.label}
-              {...item}
+              icon={item.icon}
+              label={item.label}
+              path={item.path}
+              subItems={item.subItems}
               isCollapsed={isCollapsed}
               isMobile={isMobile}
-              active={location.pathname.startsWith(item.path)}
+              active={isItemActive(item)}
               onClick={handleItemClick}
             />
           ))}
         </div>
 
-        <div className="pt-4 border-t border-gray-100">
+        <div className="pt-4 border-t border-gray-100 mt-4">
           <SidebarItem 
             icon={Settings} 
             label="Settings" 
@@ -226,13 +294,17 @@ function Sidebar() {
           
           {!isCollapsed && !isMobile && (
             <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-              <div className="flex justify-between mb-1.5">
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Usage</span>
-                <span className="text-[10px] font-bold text-black">80%</span>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <span className="text-xs text-gray-600">System Status</span>
               </div>
+             
               <div className="w-full bg-gray-200 h-1 rounded-full overflow-hidden">
                 <div className="bg-black h-full w-[80%]" />
               </div>
+              <p className="text-[10px] text-gray-400 mt-2">
+                Last updated: {new Date().toLocaleDateString()}
+              </p>
             </div>
           )}
         </div>

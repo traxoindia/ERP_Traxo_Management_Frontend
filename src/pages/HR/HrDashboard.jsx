@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, Plus, Loader } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import Sidebar from "../../components/Sidebar";
+import { Link } from "react-router-dom";
 
 const StatCard = ({ title, value, icon: Icon, loading }) => (
   <div className="bg-white border rounded-lg p-5 flex justify-between items-center">
@@ -77,10 +78,10 @@ const HrDashboard = () => {
               <p className="text-gray-500 text-sm">Overview for March 2026</p>
             </div>
 
-            <button className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition-colors">
-              <Plus size={16} />
+           <Link to="/employees" className="flex items-center gap-1 bg-black  text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95">
+              <Plus size={14} />
               Add Employee
-            </button>
+            </Link>
           </div>
 
           {/* Stats Section */}

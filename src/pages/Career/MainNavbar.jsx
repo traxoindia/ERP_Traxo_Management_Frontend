@@ -1,4 +1,5 @@
 import React from "react";
+import logo from "../../images/logo.png"; // Ensure you have a logo image in this path
 
 const MainNavbar = () => {
   return (
@@ -7,7 +8,8 @@ const MainNavbar = () => {
         
         {/* Logo / Brand */}
         <h1 className="text-2xl font-bold text-blue-600">
-          Traxo
+          <img src={logo} alt="Company Logo" className="h-8 inline-block mr-2" />
+          
         </h1>
 
         {/* Career Link */}

@@ -41,37 +41,34 @@ const Interviews = () => {
   const [selectedStage, setSelectedStage] = useState('SCREENING');
   const [candidates, setCandidates] = useState([]);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
-  const [selectedCandidates, setSelectedCandidates] = useState(new Set()); // For multiple selection
   const [viewMode, setViewMode] = useState('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [interviews, setInterviews] = useState({});
   const [fetchingInterview, setFetchingInterview] = useState(false);
-  const [feedbackModal, setFeedbackModal] = useState({ isOpen: false, candidate: null });
-  const [selectMode, setSelectMode] = useState(false); // Toggle select mode
+  const [feedbackModal, setFeedbackModal] = useState({ isOpen: false, candidate: null, interview: null });
   
-  // Feedback form state - Matches your API structure
+  // Feedback form state - Matches correct API structure
   const [feedbackData, setFeedbackData] = useState({
-    candidate_name: '',
+    applicationId: '',
+    candidateName: '',
     email: '',
     phone: '',
-    position_applied: '',
-    interviewer_id: '',
-    interviewer_name: '',
+    positionApplied: '',
+    interviewerId: '',
+    interviewerName: '',
     evaluation: {
-      communication_skills: { rating: 3, comments: '' },
-      technical_knowledge: { rating: 3, comments: '' },
-      problem_solving: { rating: 3, comments: '' },
-      relevant_experience: { rating: 3, comments: '' },
-      cultural_fit: { rating: 3, comments: '' }
+      communicationSkills: { rating: 3, comments: '' },
+      technicalKnowledge: { rating: 3, comments: '' },
+      problemSolving: { rating: 3, comments: '' },
+      relevantExperience: { rating: 3, comments: '' },
+      culturalFit: { rating: 3, comments: '' }
     },
-    overall_rating: 3,
+    overallRating: 3,
     strengths: '',
-    areas_of_improvement: '',
-    recommendation: 'pending',
-    additional_comments: '',
-    status: 'draft',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    areasOfImprovement: '',
+    recommendation: 'PENDING',
+    additionalComments: '',
+    status: 'SUBMITTED'
   });
   
   // Interview scheduling state
@@ -178,7 +175,7 @@ const Interviews = () => {
     }
   };
 
-  // Submit feedback to API
+  // Submit feedback to API - Updated to match correct API structure
   const handleSubmitFeedback = async (e) => {
     e.preventDefault();
     
@@ -188,17 +185,34 @@ const Interviews = () => {
     const token = localStorage.getItem("accessToken");
 
     try {
-      // Update timestamps
+      // Prepare payload matching the API structure
       const feedbackPayload = {
-        ...feedbackData,
-        updated_at: new Date().toISOString(),
-        status: 'submitted'
+        applicationId: feedbackModal.candidate.id,
+        candidateName: feedbackData.candidateName,
+        email: feedbackData.email,
+        phone: feedbackData.phone,
+        positionApplied: feedbackData.positionApplied,
+        interviewerId: feedbackData.interviewerId,
+        interviewerName: feedbackData.interviewerName,
+        evaluation: {
+          communicationSkills: feedbackData.evaluation.communicationSkills,
+          technicalKnowledge: feedbackData.evaluation.technicalKnowledge,
+          problemSolving: feedbackData.evaluation.problemSolving,
+          relevantExperience: feedbackData.evaluation.relevantExperience,
+          culturalFit: feedbackData.evaluation.culturalFit
+        },
+        overallRating: feedbackData.overallRating,
+        strengths: feedbackData.strengths,
+        areasOfImprovement: feedbackData.areasOfImprovement,
+        recommendation: feedbackData.recommendation,
+        additionalComments: feedbackData.additionalComments,
+        status: 'SUBMITTED'
       };
 
       console.log("Submitting feedback:", feedbackPayload);
 
-      // POST to your feedback endpoint
-      const response = await axios.post(`${API_BASE}/interview/feedback`, feedbackPayload, {
+      // POST to the correct feedback endpoint
+      const response = await axios.post(`${API_BASE}/feedback`, feedbackPayload, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -233,35 +247,34 @@ const Interviews = () => {
     
     // Pre-populate feedback form with candidate and interview data
     setFeedbackData({
-      candidate_name: candidate.fullName || '',
+      applicationId: candidate.id,
+      candidateName: candidate.fullName || '',
       email: candidate.emailAddress || '',
       phone: candidate.phoneNumber || '',
-      position_applied: candidate.appliedPosition || candidate.currentJobTitle || '',
-      interviewer_id: interview?.interviewerId || `INT${Math.floor(Math.random() * 1000)}`,
-      interviewer_name: interview?.interviewerName || 'Not Assigned',
+      positionApplied: candidate.appliedPosition || candidate.currentJobTitle || '',
+      interviewerId: interview?.interviewerId || `INT${Math.floor(Math.random() * 1000)}`,
+      interviewerName: interview?.interviewerName || 'Not Assigned',
       evaluation: {
-        communication_skills: { rating: 3, comments: '' },
-        technical_knowledge: { rating: 3, comments: '' },
-        problem_solving: { rating: 3, comments: '' },
-        relevant_experience: { rating: 3, comments: '' },
-        cultural_fit: { rating: 3, comments: '' }
+        communicationSkills: { rating: 3, comments: '' },
+        technicalKnowledge: { rating: 3, comments: '' },
+        problemSolving: { rating: 3, comments: '' },
+        relevantExperience: { rating: 3, comments: '' },
+        culturalFit: { rating: 3, comments: '' }
       },
-      overall_rating: 3,
+      overallRating: 3,
       strengths: '',
-      areas_of_improvement: '',
-      recommendation: 'pending',
-      additional_comments: '',
-      status: 'draft',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      areasOfImprovement: '',
+      recommendation: 'PENDING',
+      additionalComments: '',
+      status: 'SUBMITTED'
     });
     
-    setFeedbackModal({ isOpen: true, candidate });
+    setFeedbackModal({ isOpen: true, candidate, interview });
   };
 
   // Close feedback modal
   const closeFeedbackModal = () => {
-    setFeedbackModal({ isOpen: false, candidate: null });
+    setFeedbackModal({ isOpen: false, candidate: null, interview: null });
   };
 
   // Update evaluation rating
@@ -298,150 +311,45 @@ const Interviews = () => {
     const overall = calculateOverallRating();
     setFeedbackData(prev => ({
       ...prev,
-      overall_rating: overall
+      overallRating: overall
     }));
   }, [feedbackData.evaluation]);
 
-  // Handle single candidate selection
-  const toggleCandidateSelection = (candidateId, event) => {
+  // Move candidate to SELECTED stage
+  const moveToSelectedStage = async (candidate, event) => {
     if (event) {
       event.stopPropagation();
     }
-    
-    setSelectedCandidates(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(candidateId)) {
-        newSet.delete(candidateId);
-      } else {
-        newSet.add(candidateId);
-      }
-      return newSet;
-    });
-  };
 
-  // Handle select all candidates
-  const selectAllCandidates = () => {
-    if (selectedCandidates.size === filteredCandidates.length) {
-      // Deselect all
-      setSelectedCandidates(new Set());
-    } else {
-      // Select all
-      const allIds = new Set(filteredCandidates.map(c => c.id));
-      setSelectedCandidates(allIds);
-    }
-  };
-
-  // Handle bulk action - Move selected candidates
-  const bulkMoveToStage = async (nextStage) => {
-    if (selectedCandidates.size === 0) {
-      alert("Please select at least one candidate");
-      return;
-    }
-
-    if (nextStage === 'REJECTED') {
-      if (!window.confirm(`Are you sure you want to reject ${selectedCandidates.size} candidate(s)?`)) {
-        return;
-      }
-    }
-
-    setLoading(true);
-    const token = localStorage.getItem("accessToken");
-
-    try {
-      const promises = Array.from(selectedCandidates).map(candidateId => 
-        axios.put(`${API_BASE}/applications/${candidateId}/stage?stage=${nextStage}`, {}, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        })
-      );
-
-      await Promise.all(promises);
-      
-      alert(`${selectedCandidates.size} candidate(s) moved to ${nextStage} stage`);
-      
-      // Clear selection and refresh
-      setSelectedCandidates(new Set());
-      setSelectMode(false);
-      fetchCandidatesByStage(selectedStage);
-      
-    } catch (err) {
-      console.error("Bulk Move Error:", err);
-      alert("Failed to move some candidates. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle bulk schedule interview
-  const bulkScheduleInterview = async () => {
-    if (selectedCandidates.size === 0) {
-      alert("Please select at least one candidate");
-      return;
-    }
-
-    if (!scheduleData.interviewDate || !scheduleData.interviewTime || !scheduleData.interviewerName) {
-      alert("Please fill all required interview details");
+    if (!window.confirm(`Are you sure you want to select ${candidate.fullName} for the position?`)) {
       return;
     }
 
     setLoading(true);
     const token = localStorage.getItem("accessToken");
+    console.log(candidate.id)
 
     try {
-      const promises = Array.from(selectedCandidates).map(candidateId => {
-        const interviewPayload = {
-          applicationId: candidateId,
-          interviewDate: scheduleData.interviewDate,
-          interviewTime: scheduleData.interviewTime,
-          interviewRound: scheduleData.interviewType,
-          interviewerName: scheduleData.interviewerName,
-          interviewLink: scheduleData.interviewLink || "",
-          notes: scheduleData.notes || ""
-        };
-
-        return axios.post(`${API_BASE}/interview/schedule`, interviewPayload, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        });
+      await axios.put(`${API_BASE}/applications/${candidate.id}/stage?stage=SELECTED`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
       });
 
-      await Promise.all(promises);
-      
-      // Update stages
-      const stagePromises = Array.from(selectedCandidates).map(candidateId =>
-        axios.put(`${API_BASE}/applications/${candidateId}/stage?stage=${scheduleData.interviewType}`, {}, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        })
-      );
-
-      await Promise.all(stagePromises);
-      
-      alert(`${selectedCandidates.size} interview(s) scheduled successfully`);
-      
-      // Clear selection and refresh
-      setSelectedCandidates(new Set());
-      setSelectMode(false);
-      setScheduleData({
-        interviewDate: '',
-        interviewTime: '',
-        interviewType: 'TECHNICAL_ROUND',
-        interviewerName: '',
-        interviewLink: '',
-        notes: ''
-      });
-      
       fetchCandidatesByStage(selectedStage);
       
+      if (selectedCandidate && selectedCandidate.id === candidate.id) {
+        console.log(selectedCandidate)
+        setSelectedCandidate(null);
+        setViewMode('list');
+      }
+
+      alert(`${candidate.fullName} has been moved to SELECTED stage!`);
+      
     } catch (err) {
-      console.error("Bulk Schedule Error:", err);
-      alert("Failed to schedule some interviews. Please try again.");
+      console.error("Move to Selected Stage Error:", err);
+      alert("Failed to move candidate. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -592,7 +500,6 @@ const Interviews = () => {
 
   // View candidate details
   const viewCandidateDetails = (candidate) => {
-    if (selectMode) return; // Prevent navigation in select mode
     setSelectedCandidate(candidate);
     setViewMode('detail');
     fetchInterviewDetails(candidate.id);
@@ -608,8 +515,6 @@ const Interviews = () => {
   const backToList = () => {
     setViewMode('list');
     setSelectedCandidate(null);
-    setSelectMode(false);
-    setSelectedCandidates(new Set());
   };
 
   // Format date
@@ -839,7 +744,7 @@ const Interviews = () => {
     <>
       <BackNavbar />
 
-      {/* Feedback Modal - Matches your API structure */}
+      {/* Feedback Modal - Updated to match correct API structure */}
       <AnimatePresence>
         {feedbackModal.isOpen && (
           <motion.div
@@ -884,8 +789,8 @@ const Interviews = () => {
                     </label>
                     <input
                       type="text"
-                      value={feedbackData.interviewer_id}
-                      onChange={(e) => setFeedbackData({...feedbackData, interviewer_id: e.target.value})}
+                      value={feedbackData.interviewerId}
+                      onChange={(e) => setFeedbackData({...feedbackData, interviewerId: e.target.value})}
                       className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm"
                       placeholder="e.g., INT789"
                     />
@@ -896,8 +801,8 @@ const Interviews = () => {
                     </label>
                     <input
                       type="text"
-                      value={feedbackData.interviewer_name}
-                      onChange={(e) => setFeedbackData({...feedbackData, interviewer_name: e.target.value})}
+                      value={feedbackData.interviewerName}
+                      onChange={(e) => setFeedbackData({...feedbackData, interviewerName: e.target.value})}
                       className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm"
                       placeholder="e.g., Jane Smith"
                     />
@@ -917,12 +822,12 @@ const Interviews = () => {
                             <button
                               key={star}
                               type="button"
-                              onClick={() => updateEvaluationRating('communication_skills', star)}
+                              onClick={() => updateEvaluationRating('communicationSkills', star)}
                               className="focus:outline-none"
                             >
                               <Star 
                                 size={16} 
-                                className={feedbackData.evaluation.communication_skills.rating >= star 
+                                className={feedbackData.evaluation.communicationSkills.rating >= star 
                                   ? "fill-yellow-400 text-yellow-400" 
                                   : "text-gray-300"
                                 }
@@ -933,8 +838,8 @@ const Interviews = () => {
                       </div>
                       <textarea
                         rows="2"
-                        value={feedbackData.evaluation.communication_skills.comments}
-                        onChange={(e) => updateEvaluationComments('communication_skills', e.target.value)}
+                        value={feedbackData.evaluation.communicationSkills.comments}
+                        onChange={(e) => updateEvaluationComments('communicationSkills', e.target.value)}
                         className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm resize-none"
                         placeholder="Comments on communication skills..."
                       />
@@ -949,12 +854,12 @@ const Interviews = () => {
                             <button
                               key={star}
                               type="button"
-                              onClick={() => updateEvaluationRating('technical_knowledge', star)}
+                              onClick={() => updateEvaluationRating('technicalKnowledge', star)}
                               className="focus:outline-none"
                             >
                               <Star 
                                 size={16} 
-                                className={feedbackData.evaluation.technical_knowledge.rating >= star 
+                                className={feedbackData.evaluation.technicalKnowledge.rating >= star 
                                   ? "fill-yellow-400 text-yellow-400" 
                                   : "text-gray-300"
                                 }
@@ -965,8 +870,8 @@ const Interviews = () => {
                       </div>
                       <textarea
                         rows="2"
-                        value={feedbackData.evaluation.technical_knowledge.comments}
-                        onChange={(e) => updateEvaluationComments('technical_knowledge', e.target.value)}
+                        value={feedbackData.evaluation.technicalKnowledge.comments}
+                        onChange={(e) => updateEvaluationComments('technicalKnowledge', e.target.value)}
                         className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm resize-none"
                         placeholder="Comments on technical knowledge..."
                       />
@@ -981,12 +886,12 @@ const Interviews = () => {
                             <button
                               key={star}
                               type="button"
-                              onClick={() => updateEvaluationRating('problem_solving', star)}
+                              onClick={() => updateEvaluationRating('problemSolving', star)}
                               className="focus:outline-none"
                             >
                               <Star 
                                 size={16} 
-                                className={feedbackData.evaluation.problem_solving.rating >= star 
+                                className={feedbackData.evaluation.problemSolving.rating >= star 
                                   ? "fill-yellow-400 text-yellow-400" 
                                   : "text-gray-300"
                                 }
@@ -997,8 +902,8 @@ const Interviews = () => {
                       </div>
                       <textarea
                         rows="2"
-                        value={feedbackData.evaluation.problem_solving.comments}
-                        onChange={(e) => updateEvaluationComments('problem_solving', e.target.value)}
+                        value={feedbackData.evaluation.problemSolving.comments}
+                        onChange={(e) => updateEvaluationComments('problemSolving', e.target.value)}
                         className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm resize-none"
                         placeholder="Comments on problem solving abilities..."
                       />
@@ -1013,12 +918,12 @@ const Interviews = () => {
                             <button
                               key={star}
                               type="button"
-                              onClick={() => updateEvaluationRating('relevant_experience', star)}
+                              onClick={() => updateEvaluationRating('relevantExperience', star)}
                               className="focus:outline-none"
                             >
                               <Star 
                                 size={16} 
-                                className={feedbackData.evaluation.relevant_experience.rating >= star 
+                                className={feedbackData.evaluation.relevantExperience.rating >= star 
                                   ? "fill-yellow-400 text-yellow-400" 
                                   : "text-gray-300"
                                 }
@@ -1029,8 +934,8 @@ const Interviews = () => {
                       </div>
                       <textarea
                         rows="2"
-                        value={feedbackData.evaluation.relevant_experience.comments}
-                        onChange={(e) => updateEvaluationComments('relevant_experience', e.target.value)}
+                        value={feedbackData.evaluation.relevantExperience.comments}
+                        onChange={(e) => updateEvaluationComments('relevantExperience', e.target.value)}
                         className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm resize-none"
                         placeholder="Comments on relevant experience..."
                       />
@@ -1045,12 +950,12 @@ const Interviews = () => {
                             <button
                               key={star}
                               type="button"
-                              onClick={() => updateEvaluationRating('cultural_fit', star)}
+                              onClick={() => updateEvaluationRating('culturalFit', star)}
                               className="focus:outline-none"
                             >
                               <Star 
                                 size={16} 
-                                className={feedbackData.evaluation.cultural_fit.rating >= star 
+                                className={feedbackData.evaluation.culturalFit.rating >= star 
                                   ? "fill-yellow-400 text-yellow-400" 
                                   : "text-gray-300"
                                 }
@@ -1061,8 +966,8 @@ const Interviews = () => {
                       </div>
                       <textarea
                         rows="2"
-                        value={feedbackData.evaluation.cultural_fit.comments}
-                        onChange={(e) => updateEvaluationComments('cultural_fit', e.target.value)}
+                        value={feedbackData.evaluation.culturalFit.comments}
+                        onChange={(e) => updateEvaluationComments('culturalFit', e.target.value)}
                         className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm resize-none"
                         placeholder="Comments on cultural fit..."
                       />
@@ -1074,7 +979,7 @@ const Interviews = () => {
                 <div className="bg-gray-50 p-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-bold uppercase tracking-widest">Overall Rating</span>
-                    <span className="text-2xl font-light">{feedbackData.overall_rating.toFixed(1)} / 5.0</span>
+                    <span className="text-2xl font-light">{feedbackData.overallRating.toFixed(1)} / 5.0</span>
                   </div>
                 </div>
 
@@ -1098,8 +1003,8 @@ const Interviews = () => {
                     </label>
                     <textarea
                       rows="3"
-                      value={feedbackData.areas_of_improvement}
-                      onChange={(e) => setFeedbackData({...feedbackData, areas_of_improvement: e.target.value})}
+                      value={feedbackData.areasOfImprovement}
+                      onChange={(e) => setFeedbackData({...feedbackData, areasOfImprovement: e.target.value})}
                       className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm resize-none"
                       placeholder="What could be improved?"
                     />
@@ -1116,10 +1021,10 @@ const Interviews = () => {
                     onChange={(e) => setFeedbackData({...feedbackData, recommendation: e.target.value})}
                     className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm"
                   >
-                    <option value="pending">Pending Decision</option>
-                    <option value="hire">Hire - Move to Next Round</option>
-                    <option value="strong_hire">Strong Hire</option>
-                    <option value="no_hire">No Hire - Reject</option>
+                    <option value="PENDING">Pending Decision</option>
+                    <option value="HIRE">Hire - Move to Next Round</option>
+                    <option value="STRONG_HIRE">Strong Hire</option>
+                    <option value="NO_HIRE">No Hire - Reject</option>
                   </select>
                 </div>
 
@@ -1130,8 +1035,8 @@ const Interviews = () => {
                   </label>
                   <textarea
                     rows="2"
-                    value={feedbackData.additional_comments}
-                    onChange={(e) => setFeedbackData({...feedbackData, additional_comments: e.target.value})}
+                    value={feedbackData.additionalComments}
+                    onChange={(e) => setFeedbackData({...feedbackData, additionalComments: e.target.value})}
                     className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm resize-none"
                     placeholder="Any additional notes or observations..."
                   />
@@ -1200,134 +1105,21 @@ const Interviews = () => {
           {/* STAGE FILTERS */}
           {viewMode === 'list' && (
             <div className="mb-8">
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                  {interviewStages.map((stage) => (
-                    <button
-                      key={stage.value}
-                      onClick={() => {
-                        setSelectedStage(stage.value);
-                        setSelectedCandidates(new Set());
-                        setSelectMode(false);
-                      }}
-                      className={`px-4 py-2 text-[11px] font-bold uppercase tracking-widest rounded-sm transition-all whitespace-nowrap
-                        ${selectedStage === stage.value 
-                          ? `bg-${stage.color}-600 text-white` 
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                    >
-                      {stage.label}
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Select Mode Toggle Button */}
-                <button
-                  onClick={() => setSelectMode(!selectMode)}
-                  className={`px-4 py-2 text-[11px] font-bold uppercase tracking-widest rounded-sm transition-all flex items-center gap-2
-                    ${selectMode ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                >
-                  <Check size={14} />
-                  {selectMode ? 'Exit Select Mode' : 'Select Candidates'}
-                </button>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                {interviewStages.map((stage) => (
+                  <button
+                    key={stage.value}
+                    onClick={() => setSelectedStage(stage.value)}
+                    className={`px-4 py-2 text-[11px] font-bold uppercase tracking-widest rounded-sm transition-all whitespace-nowrap
+                      ${selectedStage === stage.value 
+                        ? `bg-${stage.color}-600 text-white` 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                  >
+                    {stage.label}
+                  </button>
+                ))}
               </div>
-
-              {/* Bulk Actions Panel - Shows only in select mode */}
-              {selectMode && selectedCandidates.size > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 p-4 bg-blue-50 border border-blue-200"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Check size={16} className="text-blue-600" />
-                      <span className="text-sm font-bold">
-                        {selectedCandidates.size} Candidate(s) Selected
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setSelectedCandidates(new Set())}
-                      className="text-[10px] text-blue-600 hover:text-blue-800 uppercase tracking-widest"
-                    >
-                      Clear Selection
-                    </button>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    {/* Bulk Schedule Interview Section */}
-                    <div className="col-span-2 border-r border-blue-200 pr-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-800 mb-3">
-                        Bulk Schedule Interview
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="date"
-                          min={new Date().toISOString().split('T')[0]}
-                          className="px-2 py-1 text-[10px] border border-blue-200 outline-none focus:border-blue-600"
-                          placeholder="Date"
-                          value={scheduleData.interviewDate}
-                          onChange={(e) => setScheduleData({...scheduleData, interviewDate: e.target.value})}
-                        />
-                        <input
-                          type="time"
-                          className="px-2 py-1 text-[10px] border border-blue-200 outline-none focus:border-blue-600"
-                          placeholder="Time"
-                          value={scheduleData.interviewTime}
-                          onChange={(e) => setScheduleData({...scheduleData, interviewTime: e.target.value})}
-                        />
-                        <select
-                          className="px-2 py-1 text-[10px] border border-blue-200 outline-none focus:border-blue-600"
-                          value={scheduleData.interviewType}
-                          onChange={(e) => setScheduleData({...scheduleData, interviewType: e.target.value})}
-                        >
-                          <option value="HR_ROUND">HR Round</option>
-                          <option value="TECHNICAL_ROUND">Technical Round</option>
-                          <option value="MANAGERIAL_ROUND">Managerial Round</option>
-                        </select>
-                        <input
-                          type="text"
-                          className="px-2 py-1 text-[10px] border border-blue-200 outline-none focus:border-blue-600"
-                          placeholder="Interviewer Name"
-                          value={scheduleData.interviewerName}
-                          onChange={(e) => setScheduleData({...scheduleData, interviewerName: e.target.value})}
-                        />
-                      </div>
-                      <button
-                        onClick={bulkScheduleInterview}
-                        disabled={!scheduleData.interviewDate || !scheduleData.interviewTime || !scheduleData.interviewerName || loading}
-                        className="mt-3 w-full bg-blue-600 text-white px-3 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50"
-                      >
-                        Schedule Interviews for {selectedCandidates.size} Candidate(s)
-                      </button>
-                    </div>
-                    
-                    {/* Bulk Stage Movement */}
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-800 mb-3">
-                        Move to Next Stage
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        {getNextStages(selectedStage).map(stage => (
-                          <button
-                            key={stage}
-                            onClick={() => bulkMoveToStage(stage)}
-                            className="w-full bg-green-600 text-white px-3 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all"
-                          >
-                            Move {selectedCandidates.size} to {stage.replace('_', ' ')}
-                          </button>
-                        ))}
-                        <button
-                          onClick={() => bulkMoveToStage('REJECTED')}
-                          className="w-full bg-red-600 text-white px-3 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-red-700 transition-all"
-                        >
-                          Reject {selectedCandidates.size} Candidate(s)
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
 
               {/* SEARCH */}
               <div className="flex items-center gap-4">
@@ -1344,16 +1136,6 @@ const Interviews = () => {
                 <span className="text-[10px] text-gray-400">
                   {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''} found
                 </span>
-                
-                {/* Select All Button in Select Mode */}
-                {selectMode && filteredCandidates.length > 0 && (
-                  <button
-                    onClick={selectAllCandidates}
-                    className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 border border-blue-600 px-3 py-1.5"
-                  >
-                    {selectedCandidates.size === filteredCandidates.length ? 'Deselect All' : 'Select All'}
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -1389,11 +1171,6 @@ const Interviews = () => {
                   >
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr className="text-[10px] text-gray-400 uppercase tracking-widest">
-                        {selectMode && (
-                          <th className="px-6 py-4 font-bold w-12">
-                            <Check size={14} />
-                          </th>
-                        )}
                         <th className="px-6 py-4 font-bold">Candidate</th>
                         <th className="px-6 py-4 font-bold">Contact</th>
                         <th className="px-6 py-4 font-bold">Position</th>
@@ -1408,28 +1185,13 @@ const Interviews = () => {
                         const nextStages = getNextStages(candidate.status || selectedStage);
                         const hasInterview = interviews[candidate.id];
                         const interview = interviews[candidate.id];
-                        const isSelected = selectedCandidates.has(candidate.id);
                         
                         return (
                           <tr 
                             key={candidate.id} 
-                            className={`hover:bg-gray-50/50 transition-colors cursor-pointer ${isSelected ? 'bg-blue-50' : ''}`}
+                            className="hover:bg-gray-50/50 transition-colors cursor-pointer"
                             onClick={() => viewCandidateDetails(candidate)}
                           >
-                            {selectMode && (
-                              <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  onClick={(e) => toggleCandidateSelection(candidate.id, e)}
-                                  className={`w-5 h-5 border-2 rounded-sm flex items-center justify-center transition-all
-                                    ${isSelected 
-                                      ? 'bg-blue-600 border-blue-600 text-white' 
-                                      : 'border-gray-300 hover:border-blue-400'
-                                    }`}
-                                >
-                                  {isSelected && <Check size={12} />}
-                                </button>
-                              </td>
-                            )}
                             <td className="px-6 py-5">
                               <p className="font-bold text-black uppercase tracking-tight">
                                 {candidate.fullName || "Unnamed"}
@@ -1466,86 +1228,90 @@ const Interviews = () => {
                               )}
                             </td>
                             <td className="px-6 py-5 text-right">
-                              {!selectMode && (
-                                <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-2 flex-wrap">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    viewCandidateDetails(candidate);
+                                  }}
+                                  className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 hover:bg-black hover:text-white transition-all"
+                                >
+                                  View
+                                </button>
+                                
+                                {/* FEEDBACK BUTTON - Only shows when interview is scheduled */}
+                                {hasInterview && (
+                                  <button
+                                    onClick={(e) => openFeedbackModal(candidate, interview, e)}
+                                    className="text-[10px] font-bold uppercase tracking-widest bg-purple-600 text-white px-3 py-1 hover:bg-purple-700 transition-all flex items-center gap-1"
+                                  >
+                                    <MessageSquare size={12} />
+                                    Feedback
+                                  </button>
+                                )}
+                                
+                                {candidate.status !== 'SELECTED' && candidate.status !== 'REJECTED' && !hasInterview && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      viewCandidateDetails(candidate);
+                                      showScheduleForm(candidate);
                                     }}
-                                    className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 hover:bg-black hover:text-white transition-all"
+                                    className="text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white px-3 py-1 hover:bg-blue-700 transition-all flex items-center gap-1"
                                   >
-                                    View
+                                    <Calendar size={12} />
+                                    Schedule
                                   </button>
-                                  
-                                  {/* FEEDBACK BUTTON - Only shows when interview is scheduled */}
-                                  {hasInterview && (
-                                    <button
-                                      onClick={(e) => openFeedbackModal(candidate, interview, e)}
-                                      className="text-[10px] font-bold uppercase tracking-widest bg-purple-600 text-white px-3 py-1 hover:bg-purple-700 transition-all flex items-center gap-1"
-                                    >
-                                      <MessageSquare size={12} />
-                                      Feedback
-                                    </button>
-                                  )}
-                                  
-                                  {candidate.status !== 'SELECTED' && candidate.status !== 'REJECTED' && !hasInterview && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        showScheduleForm(candidate);
-                                      }}
-                                      className="text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white px-3 py-1 hover:bg-blue-700 transition-all flex items-center gap-1"
-                                    >
-                                      <Calendar size={12} />
-                                      Schedule
-                                    </button>
-                                  )}
-                                  
-                                  {hasInterview && candidate.status !== 'SELECTED' && candidate.status !== 'REJECTED' && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        showScheduleForm(candidate);
-                                      }}
-                                      className="text-[10px] font-bold uppercase tracking-widest bg-yellow-600 text-white px-3 py-1 hover:bg-yellow-700 transition-all flex items-center gap-1"
-                                    >
-                                      <Calendar size={12} />
-                                      Reschedule
-                                    </button>
-                                  )}
-                                  
-                                  {nextStages.length > 0 && (
-                                    <button
-                                      onClick={(e) => moveToNextStage(candidate, nextStages[0], e)}
-                                      className="text-[10px] font-bold uppercase tracking-widest bg-green-600 text-white px-3 py-1 hover:bg-green-700 transition-all"
-                                    >
-                                      Move to {nextStages[0].replace('_', ' ')}
-                                    </button>
-                                  )}
-                                  
-                                  {candidate.status !== 'REJECTED' && candidate.status !== 'SELECTED' && (
-                                    <button
-                                      onClick={(e) => moveToNextStage(candidate, 'REJECTED', e)}
-                                      className="text-[10px] font-bold uppercase tracking-widest bg-red-600 text-white px-3 py-1 hover:bg-red-700 transition-all flex items-center gap-1"
-                                    >
-                                      <UserX size={12} />
-                                      Reject
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                              {selectMode && isSelected && (
-                                <span className="text-[8px] text-blue-600 uppercase tracking-widest font-bold">
-                                  Selected
-                                </span>
-                              )}
+                                )}
+                                
+                                {hasInterview && candidate.status !== 'SELECTED' && candidate.status !== 'REJECTED' && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      showScheduleForm(candidate);
+                                    }}
+                                    className="text-[10px] font-bold uppercase tracking-widest bg-yellow-600 text-white px-3 py-1 hover:bg-yellow-700 transition-all flex items-center gap-1"
+                                  >
+                                    <Calendar size={12} />
+                                    Reschedule
+                                  </button>
+                                )}
+                                
+                                {nextStages.length > 0 && (
+                                  <button
+                                    onClick={(e) => moveToNextStage(candidate, nextStages[0], e)}
+                                    className="text-[10px] font-bold uppercase tracking-widest bg-green-600 text-white px-3 py-1 hover:bg-green-700 transition-all"
+                                  >
+                                    Move to {nextStages[0].replace('_', ' ')}
+                                  </button>
+                                )}
+                                
+                                {/* SELECT BUTTON - Moves candidate to SELECTED stage */}
+                                {candidate.status !== 'SELECTED' && candidate.status !== 'REJECTED' && (
+                                  <button
+                                    onClick={(e) => moveToSelectedStage(candidate, e)}
+                                    className="text-[10px] font-bold uppercase tracking-widest bg-emerald-600 text-white px-3 py-1 hover:bg-emerald-700 transition-all flex items-center gap-1"
+                                  >
+                                    <UserCheck size={12} />
+                                    Select
+                                  </button>
+                                )}
+                                
+                                {candidate.status !== 'REJECTED' && candidate.status !== 'SELECTED' && (
+                                  <button
+                                    onClick={(e) => moveToNextStage(candidate, 'REJECTED', e)}
+                                    className="text-[10px] font-bold uppercase tracking-widest bg-red-600 text-white px-3 py-1 hover:bg-red-700 transition-all flex items-center gap-1"
+                                  >
+                                    <UserX size={12} />
+                                    Reject
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
                       }) : (
                         <tr>
-                          <td colSpan={selectMode ? "8" : "7"} className="px-6 py-10 text-center text-gray-400 italic">
+                          <td colSpan="7" className="px-6 py-10 text-center text-gray-400 italic">
                             {searchTerm ? "No matching candidates found." : `No candidates in ${selectedStage} stage.`}
                           </td>
                         </tr>
@@ -1590,6 +1356,16 @@ const Interviews = () => {
                           <Calendar size={14} />
                           {interviews[selectedCandidate.id] ? 'Reschedule Interview' : 'Schedule Interview'}
                         </button>
+                        {/* Select Button in Detail View */}
+                        {selectedCandidate.status !== 'SELECTED' && selectedCandidate.status !== 'REJECTED' && (
+                          <button
+                            onClick={() => moveToSelectedStage(selectedCandidate)}
+                            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                          >
+                            <UserCheck size={14} />
+                            Select Candidate
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -1621,6 +1397,15 @@ const Interviews = () => {
                           Move to {stage.replace('_', ' ')}
                         </button>
                       ))}
+                      {selectedCandidate.status !== 'SELECTED' && selectedCandidate.status !== 'REJECTED' && (
+                        <button
+                          onClick={() => moveToSelectedStage(selectedCandidate)}
+                          className="px-4 py-2 bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2"
+                        >
+                          <UserCheck size={14} />
+                          Select Candidate
+                        </button>
+                      )}
                       {selectedCandidate.status !== 'REJECTED' && selectedCandidate.status !== 'SELECTED' && (
                         <button
                           onClick={() => moveToNextStage(selectedCandidate, 'REJECTED')}
