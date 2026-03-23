@@ -66,7 +66,7 @@ const Interviews = () => {
     overallRating: 3,
     strengths: '',
     areasOfImprovement: '',
-    recommendation: 'PENDING',
+    recommendation: '',
     additionalComments: '',
     status: 'SUBMITTED'
   });
@@ -264,7 +264,7 @@ const Interviews = () => {
       overallRating: 3,
       strengths: '',
       areasOfImprovement: '',
-      recommendation: 'PENDING',
+      recommendation: candidate.recommendation|| "HIRE",
       additionalComments: '',
       status: 'SUBMITTED'
     });
@@ -1021,9 +1021,9 @@ const Interviews = () => {
                     onChange={(e) => setFeedbackData({...feedbackData, recommendation: e.target.value})}
                     className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm"
                   >
-                    <option value="PENDING">Pending Decision</option>
+            
                     <option value="HIRE">Hire - Move to Next Round</option>
-                    <option value="STRONG_HIRE">Strong Hire</option>
+
                     <option value="NO_HIRE">No Hire - Reject</option>
                   </select>
                 </div>

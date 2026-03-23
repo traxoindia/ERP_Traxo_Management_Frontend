@@ -48,6 +48,10 @@ const PostJobPage = () => {
 
   // --- API CALLS ---
 
+
+  function goToInterviewsOnboarding() {
+    navigate('/jobs/onboarding');
+  }
   const fetchJobs = async () => {
     setLoading(true);
     setError(null);
@@ -357,6 +361,13 @@ const PostJobPage = () => {
               >
                 <UserCheck size={14} />
                 Interview Dashboard
+              </button>
+              <button
+                onClick={goToInterviewsOnboarding}
+                className="inline-flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 transition-all"
+              >
+                <UserCheck size={14} />
+                Onboarding 
               </button>
             </div>
           </div>

@@ -23,6 +23,7 @@ import EmployeeSalary from "./pages/HR/Payroll/EmployeeSalary";
 import PayslipGenerator from "./pages/HR/Payroll/PayslipGenerator";
 import TaxManagement from "./pages/HR/Payroll/TaxManagement";
 import Reimbursements from "./pages/HR/Payroll/Reimbursements";
+import OnboardingDashboard from "./pages/Career/OnboardingDashboard";
 
 // Payroll
 
@@ -46,6 +47,14 @@ function App() {
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>
               <PostJobPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/jobs/onboarding"
+          element={
+            <ProtectedRoute roles={["HR", "ADMIN"]}>
+              <OnboardingDashboard />
             </ProtectedRoute>
           }
         />
