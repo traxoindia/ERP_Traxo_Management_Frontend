@@ -142,10 +142,10 @@ function Sidebar() {
       icon: CalendarCheck, 
       path: "/attendance",
       subItems: [
-        { label: "Calendar", path: "/attendance/calendar", icon: CalendarCheck },
-        { label: "Employee Attendance", path: "/attendance/employee", icon: Users },
+  
+        { label: "Employee Attendance", path: "/attendance", icon: Users },
         { label: "Leave Management", path: "/attendance/leave", icon: FileText },
-        { label: "Reports", path: "/attendance/reports", icon: BarChart },
+       
       ]
     },
     { 

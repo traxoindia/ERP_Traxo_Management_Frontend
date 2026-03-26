@@ -11,11 +11,7 @@ import Careers from "./pages/Career/Careers";
 import PostJobPage from "./pages/Career/PostJobPage";
 import Interviews from "./pages/Career/Interviews";
 
-// Attendance
-import AttendanceReports from "./pages/HR/Attendance/AttendanceReports";
-import LeaveManagement from "./pages/HR/Attendance/LeaveManagement";
-import EmployeeAttendance from "./pages/HR/Attendance/EmployeeAttendance";
-import AttendanceCalendar from "./pages/HR/Attendance/AttendanceCalendar";
+
 import PayrollDashboard from "./pages/HR/Payroll/PayrollDashboard";
 import SalaryStructure from "./pages/HR/Payroll/SalaryStructure";
 import PayrollProcessing from "./pages/HR/Payroll/PayrollProcessing";
@@ -24,6 +20,10 @@ import PayslipGenerator from "./pages/HR/Payroll/PayslipGenerator";
 import TaxManagement from "./pages/HR/Payroll/TaxManagement";
 import Reimbursements from "./pages/HR/Payroll/Reimbursements";
 import OnboardingDashboard from "./pages/Career/OnboardingDashboard";
+import AttendanceDashboard from "./pages/AttendanceDashboard";
+import EmployeeDashboard from "./EmployeeManagement/EmployeeDashboard";
+import EmployeeCheckInOut from "./EmployeeManagement/EmployeeCheckInOut";
+import LandingPage from "./pages/LandingPage";
 
 // Payroll
 
@@ -33,13 +33,21 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegistrationPage />} />
+
+
+        <Route path="/attendance" element={<AttendanceDashboard />} />
 
         {/* General Routes */}
         <Route path="/recruitment" element={<Recruitment />} />
         <Route path="/employees" element={<AddEmployee />} />
+        
         <Route path="/careers" element={<Careers />} />
+        {/* Employee Routes */}
+        <Route path="/employee-Dashboard" element={<EmployeeDashboard/>} />
+         <Route path="/employee-checkin" element={<EmployeeCheckInOut/>} />
 
         {/* Jobs */}
         <Route
@@ -78,46 +86,9 @@ function App() {
         />
 
         {/* Attendance Routes */}
-        <Route
-          path="/attendance"
-          element={
-            <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <Navigate to="/attendance/calendar" replace />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/attendance/calendar"
-          element={
-            <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <AttendanceCalendar/>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/attendance/employee"
-          element={
-            <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <EmployeeAttendance/>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/attendance/leave"
-          element={
-            <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <LeaveManagement/>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/attendance/reports"
-          element={
-            <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <AttendanceReports/>
-            </ProtectedRoute>
-          }
-        />
+
+
+
 
         {/* Payroll Routes */}
         <Route
@@ -132,7 +103,7 @@ function App() {
           path="/payroll/dashboard"
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <PayrollDashboard/>
+              <PayrollDashboard />
             </ProtectedRoute>
           }
         />
@@ -140,7 +111,7 @@ function App() {
           path="/payroll/salary-structure"
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <SalaryStructure/>
+              <SalaryStructure />
             </ProtectedRoute>
           }
         />
@@ -148,7 +119,7 @@ function App() {
           path="/payroll/processing"
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <PayrollProcessing/>
+              <PayrollProcessing />
             </ProtectedRoute>
           }
         />
@@ -156,7 +127,7 @@ function App() {
           path="/payroll/employee-salaries"
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <EmployeeSalary/>
+              <EmployeeSalary />
             </ProtectedRoute>
           }
         />
@@ -164,7 +135,7 @@ function App() {
           path="/payroll/payslips"
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <PayslipGenerator/>
+              <PayslipGenerator />
             </ProtectedRoute>
           }
         />
@@ -172,7 +143,7 @@ function App() {
           path="/payroll/tax"
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <TaxManagement/>
+              <TaxManagement />
             </ProtectedRoute>
           }
         />
@@ -180,7 +151,7 @@ function App() {
           path="/payroll/reimbursements"
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <Reimbursements/>
+              <Reimbursements />
             </ProtectedRoute>
           }
         />
@@ -190,7 +161,7 @@ function App() {
           path="/user-dashboard"
           element={
             <ProtectedRoute role="USER">
-              <UserDashboard/>
+              <UserDashboard />
             </ProtectedRoute>
           }
         />
