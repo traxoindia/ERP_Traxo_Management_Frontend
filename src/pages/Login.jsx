@@ -45,7 +45,8 @@ const Login = () => {
       navigate("/jobs/post");
     } else if (role === "HR") {
       navigate("/hr-dashboard");
-    } else {
+    }
+     else {
       navigate("/user-dashboard");
     }
 

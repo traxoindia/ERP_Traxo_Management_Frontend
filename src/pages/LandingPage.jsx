@@ -32,7 +32,7 @@ const menuData = {
       { name: "Procurement Department", icon: <ShoppingCart size={24} />, path: "/departments/procurement" },
       { name: "Software Department", icon: <Code size={24} />, path: "/departments/software" },
       { name: "Production Department", icon: <Factory size={24} />, path: "/departments/production" },
-       { name: "Employee Login", icon: <Factory size={24} />, path: "/login" },
+       { name: "Employee Login", icon: <Factory size={24} />, path: "/employee-login" },
         { name: "Wemis", icon: <Truck size={24} />, path: "https://wemis.in", isExternal: true },
          { name: "Visit Us", icon: <MapPin size={24} />, path: "https://traxoindia.com", isExternal: true },
     ],

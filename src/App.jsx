@@ -11,7 +11,6 @@ import Careers from "./pages/Career/Careers";
 import PostJobPage from "./pages/Career/PostJobPage";
 import Interviews from "./pages/Career/Interviews";
 
-
 import PayrollDashboard from "./pages/HR/Payroll/PayrollDashboard";
 import SalaryStructure from "./pages/HR/Payroll/SalaryStructure";
 import PayrollProcessing from "./pages/HR/Payroll/PayrollProcessing";
@@ -24,9 +23,12 @@ import AttendanceDashboard from "./pages/AttendanceDashboard";
 import EmployeeDashboard from "./EmployeeManagement/EmployeeDashboard";
 import EmployeeCheckInOut from "./EmployeeManagement/EmployeeCheckInOut";
 import LandingPage from "./pages/LandingPage";
+import Employeelogin from "./EmployeeManagement/Employeelogin";
+import EmployeeHistory from "./EmployeeManagement/EmployeeHistory";
+import EmployeeProfile from "./EmployeeManagement/EmployeeProfile";
+import LeaveManagementHr from "./pages/HR/LeaveManagementHr";
 
 // Payroll
-
 
 function App() {
   return (
@@ -36,20 +38,48 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegistrationPage />} />
-
-
         <Route path="/attendance" element={<AttendanceDashboard />} />
-
         {/* General Routes */}
         <Route path="/recruitment" element={<Recruitment />} />
         <Route path="/employees" element={<AddEmployee />} />
-        
         <Route path="/careers" element={<Careers />} />
         {/* Employee Routes */}
-        <Route path="/employee-Dashboard" element={<EmployeeDashboard/>} />
-         <Route path="/employee-checkin" element={<EmployeeCheckInOut/>} />
-
+        <Route path="/employee-login" element={<Employeelogin />} />
+          <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
+        <Route
+          path="/employee-checkin"
+          element={
+           
+              <EmployeeCheckInOut />
+           
+          }
+        />
+        <Route
+          path="/employee-profile"
+          element={
+           
+              <EmployeeProfile />
+           
+          }
+        />
+        <Route
+          path="/employee-history"
+          element={
+           
+              <EmployeeHistory />
+           
+          }
+        />
         {/* Jobs */}
+        EMPLOYEE
+        <Route
+          path="/hr-Leave-management"
+          element={
+            <ProtectedRoute roles={["HR", "ADMIN"]}>
+              <LeaveManagementHr />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/jobs/post"
           element={
@@ -74,7 +104,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         {/* HR Dashboard */}
         <Route
           path="/hr-dashboard"
@@ -84,12 +113,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         {/* Attendance Routes */}
-
-
-
-
         {/* Payroll Routes */}
         <Route
           path="/payroll"
@@ -155,7 +179,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         {/* User Dashboard */}
         <Route
           path="/user-dashboard"
@@ -165,7 +188,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

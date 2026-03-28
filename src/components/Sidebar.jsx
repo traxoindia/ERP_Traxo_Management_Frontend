@@ -144,7 +144,7 @@ function Sidebar() {
       subItems: [
   
         { label: "Employee Attendance", path: "/attendance", icon: Users },
-        { label: "Leave Management", path: "/attendance/leave", icon: FileText },
+        { label: "Leave Management", path: "/hr-Leave-management", icon: FileText },
        
       ]
     },

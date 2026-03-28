@@ -10,9 +10,9 @@ const EmployeeSidebar = () => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', path: '/employee-dashboard', icon: Home },
     { id: 'attendance', label: 'Attendance', path: '/employee-checkin', icon: Clock },
-    { id: 'history', label: 'History', path: '/employee/history', icon: Calendar },
+    { id: 'history', label: 'History', path: '/employee-history', icon: Calendar },
     { id: 'reports', label: 'Reports', path: '/employee/reports', icon: BarChart3 },
-    { id: 'profile', label: 'Profile', path: '/employee/profile', icon: User },
+    { id: 'profile', label: 'Profile', path: '/employee-profile', icon: User },
     { id: 'settings', label: 'Settings', path: '/employee/settings', icon: Settings },
   ];
 
