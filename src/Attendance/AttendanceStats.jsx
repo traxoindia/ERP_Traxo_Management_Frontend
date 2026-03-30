@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import attendanceService from '../services/attendanceService';
+import attendanceService from '../services/AttendanceService';
 
 const AttendanceStats = ({ employeeId }) => {
   const [stats, setStats] = useState(null);

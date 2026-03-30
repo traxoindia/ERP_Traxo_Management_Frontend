@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import MainNavbar from '../Career/MainNavbar';
 import BackNavbar from '../Career/BackNavbar';
 
 const AttendanceStatusTable = () => {
