@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import attendanceService from '../services/attendanceService';
+import attendanceService from '../services/AttendanceService';
 
 
 

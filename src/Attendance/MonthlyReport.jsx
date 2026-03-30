@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Download, TrendingUp, TrendingDown } from 'lucide-react';
-import attendanceService from '../services/attendanceService';
+import attendanceService from '../services/AttendanceService';
 
 
 const MonthlyReport = ({ employeeId }) => {
