@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAttendanceStatus, isHalfDay } from '../Attendance/utils/ locationUtils';
-import attendanceService from '../services/attendanceService';
+import attendanceService from '../services/AttendanceService';
 
 const AttendanceHistory = ({ employeeId }) => {
   const [attendance, setAttendance] = useState([]);
