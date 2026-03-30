@@ -57,46 +57,7 @@ const Navbar = ({ toggleMobileSidebar }) => {
         {/* Right */}
         <div className="flex items-center gap-2 md:gap-3">
 
-          {/* ✅ Attendance Dropdown */}
-          <div className="relative">
-
-
-            <button
-              onClick={() => setIsAttendanceOpen(!isAttendanceOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50"
-            >
-              <CalendarDays size={14} />
-              <span className="hidden md:inline">Attendance</span>
-              <ChevronDown size={12} />
-            </button>
-
-            <AnimatePresence>
-              {isAttendanceOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsAttendanceOpen(false)} />
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    className="absolute right-0 mt-2 w-48 bg-white border rounded-xl shadow-lg z-20 p-1.5"
-                  >
-                    <button onClick={() => navigate("/attendance/calendar")} className="dropdown-item">
-                      📅 Calendar
-                    </button>
-                    <button onClick={() => navigate("/attendance/employee")} className="dropdown-item">
-                      👤 Employee Attendance
-                    </button>
-                    <button onClick={() => navigate("/attendance/leave")} className="dropdown-item">
-                      📝 Leave Management
-                    </button>
-                    <button onClick={() => navigate("/attendance/reports")} className="dropdown-item">
-                      📊 Reports
-                    </button>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
+        
 
           {/* Post Job */}
           <button
@@ -110,7 +71,9 @@ const Navbar = ({ toggleMobileSidebar }) => {
           {/* Notifications */}
           <button className="p-2 text-gray-400 hover:text-gray-900 relative">
             <Bell size={18} />
-            <span className="absolute top-2 right-2 bg-blue-600 w-1.5 h-1.5 rounded-full" />
+            <span className="absolute top-2 right-2 bg-blue-600 w-1.5 h-1.5 rounded-full" 
+              
+            />
           </button>
 
           {/* Profile */}
@@ -127,6 +90,7 @@ const Navbar = ({ toggleMobileSidebar }) => {
 
             <AnimatePresence>
               {isProfileOpen && (
+                
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setIsProfileOpen(false)} />
                   <motion.div

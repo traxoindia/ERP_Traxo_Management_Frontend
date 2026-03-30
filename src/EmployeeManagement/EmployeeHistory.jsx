@@ -23,6 +23,7 @@ const EmployeeHistory = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
+      console.log(data)
       setHistory(Array.isArray(data) ? data : [data]);
     } catch (err) {
       console.error("History fetch error:", err);
@@ -32,13 +33,23 @@ const EmployeeHistory = () => {
   };
 
   const formatTime = (iso) => {
-    if (!iso) return "--:--";
-    return new Date(iso).toLocaleTimeString('en-IN', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  };
+  if (!iso) return "--:--";
+  
+  // Ensure we treat the input as UTC if it's coming from a DB without offset
+  // by appending 'Z' if it's missing, or just passing it to the constructor.
+  const date = new Date(iso.endsWith('Z') ? iso : `${iso}Z`);
+
+  return date.toLocaleTimeString('en-IN', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata' // Strictly forces Indian Standard Time
+  });
+};
+
+// Example Outputs:
+// checkIn: "11:05 am"
+// checkOut: "11:53 am"
 
   // Calculate stats for the current view
   const stats = {
@@ -47,9 +58,14 @@ const EmployeeHistory = () => {
     halfDay: history.filter(h => h.status === 'HALF_DAY').length,
   };
 
-  const filteredHistory = history.filter(h => 
-    h.date.includes(searchQuery) || h.status.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+const filteredHistory = history.filter(h => {
+  // Use (value || "") to safely handle null/undefined
+  const dateStr = (h.date || "").toString();
+  const statusStr = (h.status || "").toString().toLowerCase();
+  const search = searchQuery.toLowerCase();
+
+  return dateStr.includes(search) || statusStr.includes(search);
+});
 
   return (
     <div className="flex min-h-screen bg-white font-sans text-gray-900">

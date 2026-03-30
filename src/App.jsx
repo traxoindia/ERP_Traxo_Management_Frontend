@@ -27,6 +27,8 @@ import Employeelogin from "./EmployeeManagement/Employeelogin";
 import EmployeeHistory from "./EmployeeManagement/EmployeeHistory";
 import EmployeeProfile from "./EmployeeManagement/EmployeeProfile";
 import LeaveManagementHr from "./pages/HR/LeaveManagementHr";
+import EmployeeLeaveHistory from "./EmployeeManagement/EmployeeLeaveHistory";
+import AttendanceStatusTable from "./pages/HR/AttendanceStatusTable";
 
 // Payroll
 
@@ -38,7 +40,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegistrationPage />} />
-        <Route path="/attendance" element={<AttendanceDashboard />} />
+        <Route path="/attendance" element={<AttendanceStatusTable />} />
         {/* General Routes */}
         <Route path="/recruitment" element={<Recruitment />} />
         <Route path="/employees" element={<AddEmployee />} />
@@ -46,6 +48,7 @@ function App() {
         {/* Employee Routes */}
         <Route path="/employee-login" element={<Employeelogin />} />
           <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
+          <Route path="/employee/leave-history" element={<EmployeeLeaveHistory />} />
         <Route
           path="/employee-checkin"
           element={

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, Search, Clock, Calendar, User, Loader2, ArrowUpRight, Sidebar } from 'lucide-react';
 import MainNavbar from '../Career/MainNavbar';
+import BackNavbar from '../Career/BackNavbar';
 
 
 const LeaveManagementHr = () => {
@@ -21,7 +22,6 @@ const LeaveManagementHr = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
-      
       
       setLeaves(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -59,7 +59,7 @@ const LeaveManagementHr = () => {
     <div className="flex min-h-screen bg-white font-sans text-gray-900">
       <Sidebar/>
       <div className="flex-1 flex flex-col min-w-0">
-        <MainNavbar />
+        <BackNavbar />
         
         <main className="flex-1 p-6 md:p-12 lg:p-16">
           <div className="max-w-6xl mx-auto">

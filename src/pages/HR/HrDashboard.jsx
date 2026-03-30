@@ -4,6 +4,7 @@ import Navbar from "../../components/Navbar";
 import Sidebar from "../../components/Sidebar";
 import { Link } from "react-router-dom";
 
+
 const StatCard = ({ title, value, icon: Icon, loading }) => (
   <div className="bg-white border rounded-lg p-5 flex justify-between items-center">
     <div>
@@ -20,65 +21,70 @@ const StatCard = ({ title, value, icon: Icon, loading }) => (
 
 const HrDashboard = () => {
   const [employees, setEmployees] = useState([]);
+  const [leaves, setLeaves] = useState([]); // New state for leaves
   const [loading, setLoading] = useState(true);
 
-  // Helper to get token (Update this based on your auth logic)
   const getToken = () => localStorage.getItem("accessToken");
 
-  const fetchCurrent = async () => {
+  const fetchData = async () => {
     setLoading(true);
+    const token = getToken();
+
     try {
-      const response = await fetch('https://api.wemis.in/api/hr/employees/status/CURRENT', {
-        headers: { 
-          'Authorization': `Bearer ${getToken()}`,
-          'Accept': 'application/json'
-        }
-      });
-      if (response.status === 403) {
+      // Run both fetches in parallel for better performance
+      const [empRes, leaveRes] = await Promise.all([
+        fetch('https://api.wemis.in/api/hr/employees/status/CURRENT', {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        }),
+        fetch('https://api.wemis.in/api/leave/all', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      if (empRes.status === 403 || leaveRes.status === 403) {
         alert('Session expired. Please login again.');
-        // Optional: window.location.href = "/login";
         return;
       }
+
+      const empData = await empRes.json();
+      const leaveData = await leaveRes.json();
+
+      setEmployees(Array.isArray(empData) ? empData : (empData.data || []));
+      setLeaves(Array.isArray(leaveData) ? leaveData : (leaveData.data || []));
       
-      const data = await response.json();
-      // Adjusting based on common API structures (e.g., if data is wrapped in a .data property)
-      const empList = Array.isArray(data) ? data : (data.data || []);
-      setEmployees(empList);
     } catch (error) {
       console.error("Fetch error:", error);
-      alert('Failed to fetch employees');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCurrent();
+    fetchData();
   }, []);
 
-  // Calculate dynamic stats
+  // Logic for Stat Cards
   const totalStaff = employees.length;
-  // If your API provides an 'onDuty' or 'attendance' status, filter it here
-  // For now, using placeholders as requested
-  const onDutyCount = employees.filter(emp => emp.onDuty === true).length || 0; 
+  const onDutyCount = employees.filter(emp => emp.onDuty === true).length;
+  
+  // Filter for pending leaves if you only want to show requests needing action
+  const leaveRequestsCount = leaves.filter(l => l.status === 'PENDING').length || leaves.length;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-
       <div className="flex-1 flex flex-col">
         <Navbar />
-
+       
         <main className="p-6 max-w-7xl mx-auto w-full space-y-8">
-
+          
           {/* Header */}
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-semibold">HR Dashboard</h1>
               <p className="text-gray-500 text-sm">Overview for March 2026</p>
             </div>
-
-           <Link to="/employees" className="flex items-center gap-1 bg-black  text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95">
+            <Link to="/employees" className="flex items-center gap-1 bg-black text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95">
               <Plus size={14} />
               Add Employee
             </Link>
@@ -86,40 +92,22 @@ const HrDashboard = () => {
 
           {/* Stats Section */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard 
-              title="Total Staff" 
-              value={totalStaff} 
-              icon={Users} 
-              loading={loading}
-            />
-            <StatCard 
-              title="On Duty" 
-              value={onDutyCount} 
-              icon={UserCheck} 
-              loading={loading}
-            />
-            <StatCard 
-              title="Leave Requests" 
-              value="0" 
-              icon={Clock} 
-              loading={loading}
-            />
+            <StatCard title="Total Staff" value={totalStaff} icon={Users} loading={loading} />
+            <StatCard title="On Duty" value={onDutyCount} icon={UserCheck} loading={loading} />
+            <StatCard title="Leave Requests" value={leaveRequestsCount} icon={Clock} loading={loading} />
           </div>
 
-          {/* Placeholder for future sections */}
-          {!loading && employees.length === 0 && (
-            <div className="bg-white border rounded-lg p-12 text-center">
-              <Users className="mx-auto text-gray-300 mb-4" size={48} />
-              <p className="text-gray-500">No employee data available.</p>
-            </div>
+          {/* Loading & Empty States */}
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader className="animate-spin text-gray-400" /></div>
+          ) : (
+            employees.length === 0 && (
+              <div className="bg-white border rounded-lg p-12 text-center">
+                <Users className="mx-auto text-gray-300 mb-4" size={48} />
+                <p className="text-gray-500">No employee data available.</p>
+              </div>
+            )
           )}
-
-          {loading && (
-            <div className="flex justify-center py-12">
-              <Loader className="animate-spin text-gray-400" />
-            </div>
-          )}
-
         </main>
       </div>
     </div>

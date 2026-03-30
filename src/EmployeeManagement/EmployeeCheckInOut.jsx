@@ -171,10 +171,14 @@ const EmployeeCheckInOut = () => {
     }
   };
 
-  const filteredHistory = history.filter(item =>
-    item.date.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.status.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+const filteredHistory = history.filter(item => {
+  // Convert to string safely, defaulting to an empty string if null/undefined
+  const dateStr = (item?.date || '').toLowerCase();
+  const statusStr = (item?.status || '').toLowerCase();
+  const search = searchQuery.toLowerCase();
+
+  return dateStr.includes(search) || statusStr.includes(search);
+});
 
   const tabs = [
     { id: 'punch', label: 'Punch', icon: Clock },
