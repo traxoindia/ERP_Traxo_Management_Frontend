@@ -12,6 +12,7 @@ const EmployeeSidebar = () => {
     { id: 'attendance', label: 'Attendance', path: '/employee-checkin', icon: Clock },
     { id: 'history', label: 'History', path: '/employee-history', icon: Calendar },
     { id: 'Leave-History', label: 'Leave History', path: '/employee/leave-history', icon: BarChart3 },
+    { id: 'Payslips', label: 'Payslips', path: '/employee/payslips', icon: BarChart3 },
     { id: 'profile', label: 'Profile', path: '/employee-profile', icon: User },
     { id: 'settings', label: 'Settings', path: '/employee/settings', icon: Settings },
   ];

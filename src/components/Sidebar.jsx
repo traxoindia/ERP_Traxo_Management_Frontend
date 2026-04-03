@@ -162,14 +162,8 @@ function Sidebar() {
       icon: CreditCard, 
       path: "/payroll",
       subItems: [
-        { label: "Dashboard", path: "/payroll/dashboard", icon: LayoutDashboard },
-        { label: "Salary Structure", path: "/payroll/salary-structure", icon: Calculator },
-        { label: "Process Payroll", path: "/payroll/processing", icon: DollarSign },
-        { label: "Employee Salaries", path: "/payroll/employee-salaries", icon: Users },
-        { label: "Payslips", path: "/payroll/payslips", icon: FileText },
-        { label: "Tax Management", path: "/payroll/tax", icon: Receipt },
-        { label: "Reimbursements", path: "/payroll/reimbursements", icon: Wallet },
-        { label: "Bank Exports", path: "/payroll/exports", icon: Download },
+        { label: "Payroll", path: "/payroll/page", icon: LayoutDashboard },
+       
       ]
     },
     { 

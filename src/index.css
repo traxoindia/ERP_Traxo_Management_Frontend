@@ -1,18 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* Add to your global CSS file or style tag */
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
+
+@layer base {
+  :root {
+    --primary: 0 0% 0%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 0%;
+    --accent: 0 0% 90%;
+    --accent-foreground: 0 0% 0%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --border: 0 0% 90%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
   }
-  to {
-    transform: translateX(0);
-    opacity: 1;
+
+  * {
+    font-family: 'Inter', sans-serif;
+  }
+
+  body {
+    @apply bg-white text-black;
   }
 }
 
-.animate-slideIn {
-  animation: slideIn 0.3s ease-out;
+@layer components {
+  /* Button Styles */
+  .btn-primary {
+    @apply bg-black text-white px-6 py-2.5 rounded-lg font-medium 
+           transition-all duration-200 hover:bg-gray-800 
+           focus:ring-2 focus:ring-gray-400 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 text-black px-6 py-2.5 rounded-lg font-medium 
+           border border-gray-300 transition-all duration-200 
+           hover:bg-gray-200 focus:ring-2 focus:ring-gray-400;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-black text-black px-6 py-2.5 rounded-lg font-medium 
+           transition-all duration-200 hover:bg-black hover:text-white;
+  }
+  
+  /* Input Styles */
+  .input-field {
+    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg 
+           focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent
+           transition-all duration-200 bg-white text-black;
+  }
+  
+  .input-label {
+    @apply block text-sm font-semibold text-gray-700 mb-2;
+  }
+  
+  /* Card Styles */
+  .card {
+    @apply bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md 
+           transition-shadow duration-300 p-6;
+  }
+  
+  /* Table Styles */
+  .table-container {
+    @apply overflow-x-auto border border-gray-200 rounded-lg;
+  }
+  
+  .table {
+    @apply min-w-full divide-y divide-gray-200;
+  }
+  
+  .table-header {
+    @apply bg-gray-50 px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider;
+  }
+  
+  .table-cell {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+  }
+  
+  /* Badge Styles */
+  .badge-success {
+    @apply px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800;
+  }
+  
+  .badge-warning {
+    @apply px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800;
+  }
+  
+  .badge-pending {
+    @apply px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800;
+  }
+  
+  /* Animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
 }
