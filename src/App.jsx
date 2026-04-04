@@ -24,6 +24,10 @@ import AttendanceStatusTable from "./pages/HR/AttendanceStatusTable";
 
 import MyPayslips from "./EmployeeManagement/MyPayslips";
 import HRPayroll from "./pages/HR/Payroll/HRPayroll";
+import CalendarView from "./Attendance/CalendarView";
+import AdminLogin from "../Admin/Adminlogin";
+import AdminDashboard from "../Admin/AdminDashboard";
+import AdminRegister from "../Admin/AdminRegister";
 
 // Payroll
 
@@ -36,6 +40,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegistrationPage />} />
         <Route path="/attendance" element={<AttendanceStatusTable />} />
+         <Route path="/calender" element={<CalendarView/>} />
         {/* General Routes */}
         <Route path="/recruitment" element={<Recruitment />} />
         <Route path="/employees" element={<AddEmployee />} />
@@ -44,6 +49,12 @@ function App() {
         <Route path="/employee-login" element={<Employeelogin />} />
         <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
         <Route path="/employee/leave-history" element={<EmployeeLeaveHistory />} />
+        <Route path="/admin" element={<Navigate to="/admin/login" />} />
+        
+        {/* Admin Authentication Routes */}
+        <Route path="/admin/login" element={<AdminLogin/>} />
+        <Route path="/admin/register" element={<AdminRegister />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route
           path="/employee-checkin"
           element={

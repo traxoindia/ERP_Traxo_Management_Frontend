@@ -82,7 +82,7 @@ const LandingPage = () => {
           <h2 className="text-2xl font-light text-blue-900 uppercase tracking-widest mb-6">Staff <span className="font-bold">Banking</span></h2>
           
           <button 
-            onClick={() => navigate('/employee-login')}
+            onClick={() => navigate('/admin/login')}
             className="bg-[#1d4d8c] hover:bg-[#153a6b] text-white px-16 py-2.5 rounded font-bold flex items-center gap-4 transition-all mb-10 shadow-lg active:scale-95"
           >
             LOGIN <ChevronRight size={18} />
