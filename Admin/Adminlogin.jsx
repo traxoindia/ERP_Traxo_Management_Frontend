@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, Eye, EyeOff, Shield, Loader2, LogIn, ArrowRight } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import logo from '../src/images/logo.png';
+import MainNavbar from '../src/pages/Career/MainNavbar';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -53,6 +54,9 @@ const AdminLogin = () => {
   };
 
   return (
+    <>
+      <MainNavbar/>
+    
     <div className="flex min-h-screen bg-white font-sans text-slate-900">
       <Toaster position="top-right" reverseOrder={false} />
       
@@ -166,6 +170,7 @@ const AdminLogin = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
