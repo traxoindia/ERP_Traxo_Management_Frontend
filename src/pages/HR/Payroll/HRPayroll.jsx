@@ -98,6 +98,7 @@ const HRPayroll = () => {
         }
       );
       setSingleResult(res.data);
+      console.log(res.data)
     } catch (err) {
       setError(err.response?.data?.message || "Error generating payroll");
       console.error(err);
@@ -121,6 +122,7 @@ const HRPayroll = () => {
         }
       );
       setBulkResult(res.data);
+      console.log(res.data)
     } catch (err) {
       setError(err.response?.data?.message || "Error in bulk payroll");
       console.error(err);
@@ -150,6 +152,7 @@ const HRPayroll = () => {
         }
       );
       setSettlementResult(res.data);
+      console.log(res.data)
     } catch (err) {
       setError(err.response?.data?.message || "Settlement failed");
       console.error(err);
@@ -171,6 +174,7 @@ const HRPayroll = () => {
         }
       );
       setPayslips(res.data);
+      console.log(res.data)
     } catch (err) {
       setError(err.response?.data?.message || "Failed to fetch payslips");
       console.error(err);
@@ -197,6 +201,7 @@ const HRPayroll = () => {
         }
       );
       setHistory(res.data);
+      console.log(res.data)
     } catch (err) {
       setError(err.response?.data?.message || "Failed to fetch history");
       console.error(err);

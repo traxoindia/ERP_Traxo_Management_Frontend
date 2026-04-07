@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 
-export default function NewHireForm() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [resumeFile, setResumeFile] = useState(null);
-  
+const EmployeeForm = () => {
   const [formData, setFormData] = useState({
+    // Basic Information
+    role: '',
     employeeId: '',
     fullName: '',
     dateOfBirth: '',
@@ -14,25 +11,36 @@ export default function NewHireForm() {
     phoneNumber: '',
     emailAddress: '',
     address: '',
+    
+    // Job Information
     department: '',
     designation: '',
     reportingManager: '',
-    employeeType: 'Full Time',
+    employeeType: '',
     dateOfJoining: '',
     workLocation: '',
-    employmentStatus: 'NEW_HIRE',
+    employmentStatus: '',
+    
+    // Payroll Information
     salary: '',
+    monthlySalary: '',
     bankAccountNumber: '',
     bankName: '',
     ifscCode: '',
     panNumber: '',
+    
+    // Identity Documents
     aadhaarNumber: '',
     panCard: '',
     passport: '',
+    
+    // Other Details
     emergencyContactName: '',
     emergencyContactNumber: '',
     educationQualification: '',
     previousWorkExperience: '',
+    
+    // Document Upload (file names)
     resume: '',
     aadhaarCard: '',
     panCardDoc: '',
@@ -40,71 +48,23 @@ export default function NewHireForm() {
     educationalCertificates: ''
   });
 
-  const steps = [
-    { number: 1, name: 'Resume Upload', description: 'Smart auto-fill' },
-    { number: 2, name: 'Personal Details', description: 'Basic information' },
-    { number: 3, name: 'Job Assignment', description: 'Role & department' },
-    { number: 4, name: 'Payroll & Banking', description: 'Salary & bank details' },
-    { number: 5, name: 'Background & Identity', description: 'Additional info' },
-    { number: 6, name: 'Document Verification', description: 'Upload documents' }
-  ];
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleResumeUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setResumeFile(file);
-    setIsUploading(true);
-
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-    
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('https://api.wemis.in/api/hr/employees/upload-resume', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const data = await response.json();
-      
-      setFormData(prev => ({
-        ...prev,
-        fullName: data.fullName || prev.fullName,
-        phoneNumber: data.phoneNumber || prev.phoneNumber,
-        emailAddress: data.emailAddress || prev.emailAddress,
-        educationQualification: data.educationQualification || prev.educationQualification,
-        previousWorkExperience: data.previousWorkExperience || prev.previousWorkExperience,
-        resume: data.resume || file.name
-      }));
-
-      alert('✅ Resume parsed successfully! Form auto-filled.');
-      setCurrentStep(2); // Move to next step after successful upload
-    } catch (error) {
-      console.error('Upload error:', error);
-      alert('❌ Resume upload failed. Please fill manually.');
-      setFormData(prev => ({ ...prev, resume: file.name }));
-    } finally {
-      setIsUploading(false);
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setLoading(true);
+    setError('');
+    setSuccess('');
 
     const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
 
@@ -118,324 +78,543 @@ export default function NewHireForm() {
         body: JSON.stringify(formData)
       });
 
-      if (response.status === 403) {
-        alert('❌ Access Denied (403): Please login again.');
-        return;
-      }
-
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Server responded with ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit employee data');
       }
 
-      alert('✅ Employee saved successfully!');
+      const result = await response.json();
+      setSuccess('Employee added successfully!');
+      console.log('Success:', result);
       
-      setFormData({
-        employeeId: '',
-        fullName: '',
-        dateOfBirth: '',
-        gender: '',
-        phoneNumber: '',
-        emailAddress: '',
-        address: '',
-        department: '',
-        designation: '',
-        reportingManager: '',
-        employeeType: 'Full Time',
-        dateOfJoining: '',
-        workLocation: '',
-        employmentStatus: 'NEW_HIRE',
-        salary: '',
-        bankAccountNumber: '',
-        bankName: '',
-        ifscCode: '',
-        panNumber: '',
-        aadhaarNumber: '',
-        panCard: '',
-        passport: '',
-        emergencyContactName: '',
-        emergencyContactNumber: '',
-        educationQualification: '',
-        previousWorkExperience: '',
-        resume: '',
-        aadhaarCard: '',
-        panCardDoc: '',
-        offerLetter: '',
-        educationalCertificates: ''
-      });
-      setResumeFile(null);
-      setCurrentStep(1);
+      // Optional: Reset form after successful submission
+      // resetForm();
       
-    } catch (error) {
-      console.error('Submission error:', error);
-      alert(`❌ Error: ${error.message}`);
+    } catch (err) {
+      setError(err.message || 'An error occurred while submitting the form');
+      console.error('Error:', err);
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const nextStep = () => {
-    if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const isStepComplete = (step) => {
-    switch(step) {
-      case 1:
-        return formData.resume !== '';
-      case 2:
-        return formData.fullName && formData.emailAddress;
-      case 3:
-        return formData.department && formData.designation;
-      case 4:
-        return true; // Optional
-      case 5:
-        return true; // Optional
-      case 6:
-        return true; // Optional
-      default:
-        return false;
-    }
+  const resetForm = () => {
+    setFormData({
+      role: '',
+      employeeId: '',
+      fullName: '',
+      dateOfBirth: '',
+      gender: '',
+      phoneNumber: '',
+      emailAddress: '',
+      address: '',
+      department: '',
+      designation: '',
+      reportingManager: '',
+      employeeType: '',
+      dateOfJoining: '',
+      workLocation: '',
+      employmentStatus: '',
+      salary: '',
+      monthlySalary: '',
+      bankAccountNumber: '',
+      bankName: '',
+      ifscCode: '',
+      panNumber: '',
+      aadhaarNumber: '',
+      panCard: '',
+      passport: '',
+      emergencyContactName: '',
+      emergencyContactNumber: '',
+      educationQualification: '',
+      previousWorkExperience: '',
+      resume: '',
+      aadhaarCard: '',
+      panCardDoc: '',
+      offerLetter: '',
+      educationalCertificates: ''
+    });
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">New Hire Registration</h2>
-        <p className="text-gray-600">Complete all steps to onboard the new employee</p>
-      </div>
+    <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700">
+            <h1 className="text-2xl font-bold text-white">Employee Registration Form</h1>
+            <p className="text-blue-100 mt-1">Fill in the employee details below</p>
+          </div>
 
-      {/* Progress Steps */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          {steps.map((step) => (
-            <div key={step.number} className="flex-1 relative">
-              {step.number < steps.length && (
-                <div className={`absolute top-5 left-1/2 w-full h-0.5 ${
-                  step.number < currentStep ? 'bg-gray-800' : 'bg-gray-300'
-                }`} />
-              )}
-              <div className="relative flex flex-col items-center">
-                <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-semibold ${
-                  step.number < currentStep 
-                    ? 'bg-gray-800 border-gray-800 text-white' 
-                    : step.number === currentStep
-                    ? 'border-gray-800 bg-white text-gray-800'
-                    : 'border-gray-300 bg-white text-gray-400'
-                }`}>
-                  {step.number < currentStep ? '✓' : step.number}
+          {error && (
+            <div className="mx-6 mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+              <strong className="font-bold">Error! </strong>
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div className="mx-6 mt-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+              <strong className="font-bold">Success! </strong>
+              <span className="block sm:inline">{success}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-8">
+            {/* Basic Information Section */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b-2 border-blue-500 pb-2">
+                Basic Information
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                  <input
+                    type="text"
+                    name="role"
+                    value={formData.role}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter role"
+                  />
                 </div>
-                <div className="mt-2 text-center">
-                  <div className={`text-sm font-semibold ${
-                    step.number <= currentStep ? 'text-gray-800' : 'text-gray-400'
-                  }`}>
-                    {step.name}
-                  </div>
-                  <div className="text-xs text-gray-500">{step.description}</div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID *</label>
+                  <input
+                    type="text"
+                    name="employeeId"
+                    value={formData.employeeId}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter employee ID"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter full name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    name="dateOfBirth"
+                    value={formData.dateOfBirth}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+                  <input
+                    type="tel"
+                    name="phoneNumber"
+                    value={formData.phoneNumber}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                  <input
+                    type="email"
+                    name="emailAddress"
+                    value={formData.emailAddress}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter email address"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    rows="2"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter address"
+                  />
                 </div>
               </div>
             </div>
-          ))}
+
+            {/* Job Information Section */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b-2 border-blue-500 pb-2">
+                Job Information
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                  <input
+                    type="text"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter department"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
+                  <input
+                    type="text"
+                    name="designation"
+                    value={formData.designation}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter designation"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Manager</label>
+                  <input
+                    type="text"
+                    name="reportingManager"
+                    value={formData.reportingManager}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter reporting manager"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee Type</label>
+                  <select
+                    name="employeeType"
+                    value={formData.employeeType}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Contract">Contract</option>
+                    <option value="Intern">Intern</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Joining</label>
+                  <input
+                    type="date"
+                    name="dateOfJoining"
+                    value={formData.dateOfJoining}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Work Location</label>
+                  <input
+                    type="text"
+                    name="workLocation"
+                    value={formData.workLocation}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter work location"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employment Status</label>
+                  <select
+                    name="employmentStatus"
+                    value={formData.employmentStatus}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Probation">Probation</option>
+                    <option value="Terminated">Terminated</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Payroll Information Section */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b-2 border-blue-500 pb-2">
+                Payroll Information
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Salary (Annual)</label>
+                  <input
+                    type="text"
+                    name="salary"
+                    value={formData.salary}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter annual salary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Salary</label>
+                  <input
+                    type="number"
+                    name="monthlySalary"
+                    value={formData.monthlySalary}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter monthly salary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank Account Number</label>
+                  <input
+                    type="text"
+                    name="bankAccountNumber"
+                    value={formData.bankAccountNumber}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter bank account number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                  <input
+                    type="text"
+                    name="bankName"
+                    value={formData.bankName}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter bank name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IFSC Code</label>
+                  <input
+                    type="text"
+                    name="ifscCode"
+                    value={formData.ifscCode}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter IFSC code"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number</label>
+                  <input
+                    type="text"
+                    name="panNumber"
+                    value={formData.panNumber}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter PAN number"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Identity Documents Section */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b-2 border-blue-500 pb-2">
+                Identity Documents
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Aadhaar Number</label>
+                  <input
+                    type="text"
+                    name="aadhaarNumber"
+                    value={formData.aadhaarNumber}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter Aadhaar number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">PAN Card</label>
+                  <input
+                    type="text"
+                    name="panCard"
+                    value={formData.panCard}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter PAN card number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Passport</label>
+                  <input
+                    type="text"
+                    name="passport"
+                    value={formData.passport}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter passport number"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Other Details Section */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b-2 border-blue-500 pb-2">
+                Other Details
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Name</label>
+                  <input
+                    type="text"
+                    name="emergencyContactName"
+                    value={formData.emergencyContactName}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter emergency contact name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Number</label>
+                  <input
+                    type="tel"
+                    name="emergencyContactNumber"
+                    value={formData.emergencyContactNumber}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter emergency contact number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Education Qualification</label>
+                  <input
+                    type="text"
+                    name="educationQualification"
+                    value={formData.educationQualification}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter education qualification"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Previous Work Experience</label>
+                  <input
+                    type="text"
+                    name="previousWorkExperience"
+                    value={formData.previousWorkExperience}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter previous work experience"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Document Upload Section */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b-2 border-blue-500 pb-2">
+                Document Names
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Resume File Name</label>
+                  <input
+                    type="text"
+                    name="resume"
+                    value={formData.resume}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter resume file name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Aadhaar Card File Name</label>
+                  <input
+                    type="text"
+                    name="aadhaarCard"
+                    value={formData.aadhaarCard}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter aadhaar card file name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">PAN Card Doc File Name</label>
+                  <input
+                    type="text"
+                    name="panCardDoc"
+                    value={formData.panCardDoc}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter PAN card file name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Offer Letter File Name</label>
+                  <input
+                    type="text"
+                    name="offerLetter"
+                    value={formData.offerLetter}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter offer letter file name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Educational Certificates File Name</label>
+                  <input
+                    type="text"
+                    name="educationalCertificates"
+                    value={formData.educationalCertificates}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter educational certificates file name"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Reset
+              </button>
+
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Submitting...' : 'Submit Employee'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
-
-      <form onSubmit={handleSubmit} className="space-y-8 bg-white p-8 rounded-xl border border-gray-300 shadow-lg">
-        
-        {/* Step 1: Resume Upload */}
-        {currentStep === 1 && (
-          <section className="bg-gray-50 p-6 rounded-lg border-2 border-gray-400 border-dashed">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">📄 Step 1: Smart Resume Upload</h3>
-            <p className="text-sm text-gray-600 mb-4">Upload resume to auto-fill employee details</p>
-            <div className="flex items-center gap-4">
-              <input 
-                type="file" 
-                accept=".pdf,.doc,.docx"
-                onChange={handleResumeUpload}
-                disabled={isUploading}
-                className="flex-1 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-800 file:text-white hover:file:bg-gray-900 disabled:opacity-50"
-              />
-              {isUploading && <span className="text-gray-600">Uploading...</span>}
-              {resumeFile && <span className="text-gray-700 text-sm">✓ {resumeFile.name}</span>}
-            </div>
-          </section>
-        )}
-
-        {/* Step 2: Personal Details */}
-        {currentStep === 2 && (
-          <section>
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-300 pb-2">Step 2: Personal Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Field label="Employee ID" name="employeeId" value={formData.employeeId} onChange={handleChange} required />
-              <Field label="Full Name" name="fullName" value={formData.fullName} onChange={handleChange} required />
-              <Field label="Date of Birth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={handleChange} />
-              <SelectField label="Gender" name="gender" value={formData.gender} onChange={handleChange} options={['Male', 'Female', 'Other']} />
-              <Field label="Phone Number" name="phoneNumber" type="tel" value={formData.phoneNumber} onChange={handleChange} />
-              <Field label="Email Address" name="emailAddress" type="email" value={formData.emailAddress} onChange={handleChange} required />
-              <Field label="Address" name="address" value={formData.address} onChange={handleChange} className="md:col-span-2 lg:col-span-3" />
-            </div>
-          </section>
-        )}
-
-        {/* Step 3: Job Assignment */}
-        {currentStep === 3 && (
-          <section>
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-300 pb-2">Step 3: Job Assignment</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Field label="Department" name="department" value={formData.department} onChange={handleChange} />
-              <Field label="Designation" name="designation" value={formData.designation} onChange={handleChange} />
-              <Field label="Reporting Manager" name="reportingManager" value={formData.reportingManager} onChange={handleChange} />
-              <SelectField label="Employee Type" name="employeeType" value={formData.employeeType} onChange={handleChange} options={['Full Time', 'Part Time', 'Contract', 'Intern']} />
-              <Field label="Date of Joining" name="dateOfJoining" type="date" value={formData.dateOfJoining} onChange={handleChange} />
-              <Field label="Work Location" name="workLocation" value={formData.workLocation} onChange={handleChange} />
-            </div>
-          </section>
-        )}
-
-        {/* Step 4: Payroll & Banking */}
-        {currentStep === 4 && (
-          <section>
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-300 pb-2">Step 4: Payroll & Banking</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Field label="Salary / CTC" name="salary" value={formData.salary} onChange={handleChange} />
-              <Field label="Bank Account Number" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} />
-              <Field label="Bank Name" name="bankName" value={formData.bankName} onChange={handleChange} />
-              <Field label="IFSC Code" name="ifscCode" value={formData.ifscCode} onChange={handleChange} />
-              <Field label="PAN Number" name="panNumber" value={formData.panNumber} onChange={handleChange} />
-              <Field label="Aadhaar Number" name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleChange} />
-            </div>
-          </section>
-        )}
-
-        {/* Step 5: Background & Identity */}
-        {currentStep === 5 && (
-          <section>
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-300 pb-2">Step 5: Background & Identity</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Field label="Passport Number" name="passport" value={formData.passport} onChange={handleChange} />
-              <Field label="Emergency Contact Name" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} />
-              <Field label="Emergency Contact Number" name="emergencyContactNumber" value={formData.emergencyContactNumber} onChange={handleChange} />
-              <Field label="Education Qualification" name="educationQualification" value={formData.educationQualification} onChange={handleChange} />
-              <Field label="Previous Work Experience" name="previousWorkExperience" value={formData.previousWorkExperience} onChange={handleChange} />
-            </div>
-          </section>
-        )}
-
-        {/* Step 6: Document Verification */}
-        {currentStep === 6 && (
-          <section>
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-300 pb-2">Step 6: Document Verification</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <FileUploadField label="Aadhaar Card" name="aadhaarCard" value={formData.aadhaarCard} onChange={(e) => handleFileUpload(e, 'aadhaarCard')} />
-              <FileUploadField label="PAN Card" name="panCardDoc" value={formData.panCardDoc} onChange={(e) => handleFileUpload(e, 'panCardDoc')} />
-              <FileUploadField label="Offer Letter" name="offerLetter" value={formData.offerLetter} onChange={(e) => handleFileUpload(e, 'offerLetter')} />
-              <FileUploadField label="Education Certificates" name="educationalCertificates" value={formData.educationalCertificates} onChange={(e) => handleFileUpload(e, 'educationalCertificates')} />
-            </div>
-          </section>
-        )}
-
-        {/* Navigation Buttons */}
-        <div className="flex justify-between gap-4 pt-4 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={prevStep}
-            disabled={currentStep === 1}
-            className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-              currentStep === 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-            }`}
-          >
-            ← Previous
-          </button>
-
-          {currentStep < steps.length ? (
-            <button
-              type="button"
-              onClick={nextStep}
-              className="px-6 py-2 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-900 transition-all"
-            >
-              Next Step →
-            </button>
-          ) : (
-            <button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="px-8 py-3 bg-gray-800 text-white font-bold rounded-lg shadow-lg hover:bg-gray-900 transition-all active:scale-[0.99] disabled:opacity-50"
-            >
-              {isSubmitting ? '📡 Submitting...' : '✓ Complete Registration'}
-            </button>
-          )}
-        </div>
-
-        {/* Step Progress Indicator */}
-        <div className="text-center text-sm text-gray-500">
-          Step {currentStep} of {steps.length}: {steps[currentStep-1].name}
-        </div>
-      </form>
-    </div>
-  );
-}
-
-// Helper Components
-const Field = ({ label, name, type = "text", value, onChange, required = false, className = "" }) => (
-  <div className={`flex flex-col ${className}`}>
-    <label className="text-sm font-semibold mb-1 text-gray-700">{label} {required && <span className="text-red-500">*</span>}</label>
-    <input 
-      type={type} 
-      name={name}
-      value={value || ''}
-      onChange={onChange}
-      required={required}
-      className="border border-gray-400 p-2 rounded-lg focus:ring-2 focus:ring-gray-600 outline-none transition-all bg-white" 
-    />
-  </div>
-);
-
-const SelectField = ({ label, name, value, onChange, options }) => (
-  <div className="flex flex-col">
-    <label className="text-sm font-semibold mb-1 text-gray-700">{label}</label>
-    <select name={name} value={value} onChange={onChange} className="border border-gray-400 p-2 rounded-lg focus:ring-2 focus:ring-gray-600 outline-none bg-white">
-      <option value="">Select...</option>
-      {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-    </select>
-  </div>
-);
-
-const FileUploadField = ({ label, value, onChange }) => {
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      onChange(e);
-    }
-  };
-
-  return (
-    <div className="flex flex-col border border-gray-300 p-3 rounded-lg bg-gray-50">
-      <label className="text-xs font-bold uppercase text-gray-600 mb-2">{label}</label>
-      <input 
-        type="file" 
-        onChange={handleFileChange} 
-        className="text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-200 file:text-gray-800 hover:file:bg-gray-300" 
-      />
-      {value && <span className="text-[10px] text-gray-700 mt-1 truncate">✓ {value}</span>}
     </div>
   );
 };
 
-// Keep the handleFileUpload function
-const handleFileUpload = (e, fieldName) => {
-  const file = e.target.files[0];
-  if (file) {
-    // This will be handled by the parent component's state
-    // The function is defined in the parent component
-  }
-};
+export default EmployeeForm;

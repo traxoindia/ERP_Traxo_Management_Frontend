@@ -1,140 +1,166 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Lock, Mail, Eye, EyeOff, Shield, Loader2, LogIn, ArrowRight } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
+import logo from '../src/images/logo.png';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+
+    const API_URL = 'https://python-backend-2-5uar.onrender.com/auth/login';
+
     try {
-      const res = await axios.post('https://api.wemis.in/api/admin/login', { email, password });
-      localStorage.setItem('accessToken', res.data.token);
-      // Optional: Store admin info
-      // localStorage.setItem('adminUser', JSON.stringify(res.data.user)); 
-      navigate('/admin/dashboard');
+      const res = await axios.post(API_URL, { email, password });
+      const token = res.data.token || res.data.access_token;
+      
+      if (token) {
+        localStorage.setItem('accessToken', token);
+        if (rememberMe) localStorage.setItem('rememberedEmail', email);
+        else localStorage.removeItem('rememberedEmail');
+        
+        toast.success('Welcome back! Redirecting...', {
+            style: { background: '#1e293b', color: '#fff' },
+            iconTheme: { primary: '#facc15', secondary: '#fff' }
+        });
+        
+        setTimeout(() => navigate('/admin/dashboard'), 1500);
+      }
     } catch (err) {
-      alert("Access Denied: Please check your admin credentials.");
+      const errorMsg = err.response?.data?.detail || "Invalid credentials.";
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-white font-sans">
+    <div className="flex min-h-screen bg-white font-sans text-slate-900">
+      <Toaster position="top-right" reverseOrder={false} />
       
-      {/* Left Side: Branding/Visual (Hidden on Mobile) */}
-      <div className="hidden lg:flex w-1/2 bg-slate-900 flex-col justify-between p-12 text-white relative overflow-hidden">
-        {/* Decorative background element */}
-        <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"></div>
+      {/* Visual Side Panel - Yellow/Slate Theme */}
+      <div className="hidden lg:flex w-2/5 bg-[#0f172a] flex-col justify-between p-16 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-yellow-500/5 rounded-full blur-3xl -ml-32 -mb-32"></div>
         
         <div className="relative z-10">
-          <div className="flex items-center space-x-3 mb-10">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <ShieldCheck size={32} />
-            </div>
-            <h1 className="text-3xl font-black tracking-tight">TRAXO <span className="text-blue-500">ERP</span></h1>
-          </div>
-          <h2 className="text-5xl font-bold leading-tight">
-            Manage your <br /> 
-            <span className="text-blue-500">entire enterprise</span> <br /> 
-            in one place.
-          </h2>
+          <img src={logo} alt="Traxo Logo" className="w-32 mb-12" />
+         
+          <p className="mt-6 text-slate-900 text-lg max-w-sm leading-relaxed">
+            Access your secure dashboard to manage operations and enterprise resources.
+          </p>
         </div>
 
-        <div className="relative z-10">
-          <p className="text-slate-400 max-w-md mb-6">
-            Secure, scalable, and intuitive management for modern businesses.
-          </p>
-          <div className="flex space-x-4 text-sm text-slate-500">
-            <span>© 2026 Traxo Systems</span>
-            <span>•</span>
-            <span>Privacy Policy</span>
-          </div>
+        <div className="relative z-10 flex items-center space-x-2 text-xs font-medium text-slate-500 uppercase tracking-widest">
+            <Shield size={14} className="text-yellow-500" />
+            <span>Enterprise Grade Security</span>
         </div>
       </div>
 
-      {/* Right Side: Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16 bg-gray-50">
+      {/* Login Form Section */}
+      <div className="w-full lg:w-3/5 flex items-center justify-center p-6 sm:p-12 bg-slate-50">
         <div className="w-full max-w-md">
-          <div className="mb-10 lg:hidden flex justify-center">
-            <h1 className="text-3xl font-black text-slate-900">TRAXO <span className="text-blue-600">ERP</span></h1>
-          </div>
-
-          <div className="mb-8">
-            <h2 className="text-3xl font-extrabold text-slate-900">Admin Login</h2>
-            <p className="text-slate-500 mt-2">Enter your credentials to access the management portal.</p>
+          <div className="mb-10 text-center lg:text-left">
+            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-3">Welcome Back</h2>
+            <p className="text-slate-500 font-medium">Please enter your details to sign in.</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
-            {/* Email Field */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-4 pl-3 flex items-center text-slate-400">
-                  <Mail size={18} />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Work Email</label>
+              <div className="relative group">
+                <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 group-focus-within:text-yellow-600 transition-colors">
+                  <Mail size={19} />
                 </span>
                 <input 
                   type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@traxo.com" 
-                  className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
-                  onChange={(e) => setEmail(e.target.value)} 
+                  className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 outline-none transition-all font-medium"
                   required
                 />
               </div>
             </div>
 
-            {/* Password Field */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-4 pl-3 flex items-center text-slate-400">
-                  <Lock size={18} />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Password</label>
+              <div className="relative group">
+                <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 group-focus-within:text-yellow-600 transition-colors">
+                  <Lock size={19} />
                 </span>
                 <input 
                   type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••" 
-                  className="w-full pl-10 pr-12 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
-                  onChange={(e) => setPassword(e.target.value)} 
+                  className="w-full pl-12 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 outline-none transition-all font-medium"
                   required
                 />
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-blue-600"
+                  className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4" />
-                <span className="text-slate-600">Remember for 30 days</span>
-              </label>
-              <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">Forgot password?</a>
+            <div className="flex items-center justify-between px-1">
+                <label className="flex items-center space-x-2 cursor-pointer group">
+                    <input 
+                        type="checkbox" 
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-yellow-500 focus:ring-yellow-500" 
+                    />
+                    <span className="text-sm font-medium text-slate-500 group-hover:text-slate-700 transition-colors">Remember me</span>
+                </label>
+                <Link to="/admin/forgot-password" size={19} className="text-sm font-bold text-yellow-600 hover:text-yellow-700 transition-colors">
+                    Forgot password?
+                </Link>
             </div>
 
             <button 
               disabled={loading}
-              className={`w-full py-4 rounded-xl font-bold text-white shadow-lg shadow-blue-200 transition-all transform active:scale-[0.98] ${
-                loading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-300'
+              className={`w-full py-4 rounded-2xl font-bold bg-yellow-500 text-black shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center space-x-2 ${
+                loading ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#0f172a] hover:bg-black'
               }`}
             >
-              {loading ? "Verifying Access..." : "Secure Sign In"}
+              {loading ? <Loader2 className="animate-spin" size={22} /> : (
+                <>
+                  <span className="uppercase tracking-widest text-sm">Sign In</span>
+                  <LogIn size={18} />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-sm text-slate-500">
-              Need to set up a new branch? <a href="/admin/register" className="font-bold text-slate-900 hover:underline">Create Admin Account</a>
+          <div className="pt-8 text-center">
+            <p className="text-slate-500 font-medium">
+              New to the platform?{' '}
+              <Link to="/admin/register" className="text-yellow-600 hover:text-yellow-700 font-bold decoration-2 underline-offset-4 hover:underline">
+                Create Account
+              </Link>
             </p>
           </div>
         </div>

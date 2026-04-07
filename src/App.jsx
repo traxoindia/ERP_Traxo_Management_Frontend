@@ -28,6 +28,8 @@ import CalendarView from "./Attendance/CalendarView";
 import AdminLogin from "../Admin/Adminlogin";
 import AdminDashboard from "../Admin/AdminDashboard";
 import AdminRegister from "../Admin/AdminRegister";
+import Reports from "./pages/HR/Reports";
+import AdminForgotPassword from "../Admin/AdminForgotPassword";
 
 // Payroll
 
@@ -37,6 +39,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
+      
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegistrationPage />} />
         <Route path="/attendance" element={<AttendanceStatusTable />} />
@@ -55,6 +58,7 @@ function App() {
         <Route path="/admin/login" element={<AdminLogin/>} />
         <Route path="/admin/register" element={<AdminRegister />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+         <Route path="/admin/forgot-password" element={<AdminForgotPassword/>} />
         <Route
           path="/employee-checkin"
           element={
@@ -122,6 +126,15 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute roles={["HR", "ADMIN"]}>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+        
         {/* Attendance Routes */}
         {/* Payroll Routes */}
         <Route path="/payroll/page" element={<HRPayroll />} />

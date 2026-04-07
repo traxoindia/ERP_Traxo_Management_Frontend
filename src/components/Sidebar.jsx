@@ -170,10 +170,7 @@ function Sidebar() {
       label: "Reports", 
       icon: FileText, 
       path: "/reports" ,
-      subItems: [
-        { label: "Offer Letter", path: "/jobs/OfferLetter", icon: Briefcase },
-        { label: "Experience Letter", path: "/jobs/ExperienceLetter", icon: UserCircle },
-      ]
+      
     },
   ];
 

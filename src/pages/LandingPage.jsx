@@ -12,7 +12,8 @@ const menuData = {
   Traxo: {
     label: "",
     items: [
-      { name: "HR Department", icon: <Users size={18} />, path: "/login" },
+        { name: "Admin Login", icon: <Users size={18} />, path: "/admin/login" },
+      { name: "HR login", icon: <Users size={18} />, path: "/login" },
       { name: "Finance", icon: <Landmark size={18} />, path: "/departments/finance" },
       { name: "Procurement", icon: <ShoppingCart size={18} />, path: "/departments/procurement" },
       { name: "Software", icon: <Code size={18} />, path: "/departments/software" },
