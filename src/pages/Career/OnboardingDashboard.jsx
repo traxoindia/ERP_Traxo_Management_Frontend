@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { Users, CheckCircle, RefreshCcw, Search, Briefcase, ChevronRight } from "lucide-react";
 
 function OnboardingDashboard() {
   const [applications, setApplications] = useState([]);
   const [selected, setSelected] = useState([]);
-  const [feedback, setFeedback] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  
-  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     loadDashboardData();
@@ -16,205 +14,158 @@ function OnboardingDashboard() {
 
   const getAuthConfig = () => {
     const token = localStorage.getItem("accessToken");
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
-  };
-
-  // --- API Call 1: Fetch All Applications ---
-  const fetchApplications = async () => {
-    try {
-      const res = await axios.get("https://api.wemis.in/api/careers/applications", getAuthConfig());
-      setApplications(res.data || []);
-    } catch (err) {
-      if (err.response?.status === 403) {
-        setError((prev) => prev + "• Permission denied for Applications. ");
-      }
-    }
-  };
-
-  // --- API Call 2: Fetch Selected Candidates (Updated Endpoint) ---
-  const fetchSelected = async () => {
-    try {
-      // Using the specific stage endpoint you provided
-      // Note: If 'APP001' is a placeholder, you might need to fetch this per-id
-      const res = await axios.get(
-        "https://api.wemis.in/api/careers/applications/selected", 
-        getAuthConfig()
-      );
-      
-      // Normalize data: ensure it's an array for the dashboard stats
-      const data = res.data;
-      console.log(data)
-      setSelected(Array.isArray(data) ? data : data ? [data] : []);
-    } catch (err) {
-      if (err.response?.status === 403) {
-        setError((prev) => prev + "• Permission denied for Selected Candidates. ");
-      }
-    }
-  };
-
-  // --- API Call 3: Fetch Feedback ---
-  const fetchFeedback = async () => {
-    try {
-      const res = await axios.get("https://api.wemis.in/api/careers/feedback", getAuthConfig());
-      setFeedback(res.data || []);
-    } catch (err) {
-      if (err.response?.status === 403) {
-        setError((prev) => prev + "• Permission denied for Feedback. ");
-      }
-    }
+    return { headers: { Authorization: `Bearer ${token}` } };
   };
 
   const loadDashboardData = async () => {
     setLoading(true);
-    setError("");
-    setSelectedFeedback(null);
-
-    await Promise.all([
-      fetchApplications(),
-      fetchSelected(),
-      fetchFeedback(),
-    ]);
-
-    setLoading(false);
-  };
-
-  // --- Helpers ---
-  const isSelected = (appId) => {
-    // Matches against ID or application reference in the selected list
-    return selected.some((s) => s.id === appId || s.applicationId === appId);
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "N/A";
     try {
-      return new Date(dateStr).toLocaleDateString("en-GB", {
-        day: "2-digit", month: "short", year: "numeric"
-      });
-    } catch { return dateStr; }
+      const [appRes] = await Promise.all([
+        axios.get("https://api.wemis.in/api/careers/applications/selected", getAuthConfig()),
+      ]);
+      console.log(appRes.data);
+      setApplications(appRes.data || []);
+      setSelected(Array.isArray(appRes.data) ? appRes.data : appRes.data ? [appRes.data] : []);
+    } catch (err) {
+      console.error("Data sync error", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const renderStars = (rating) => {
-    const fullStars = Math.floor(rating || 0);
-    return "★".repeat(fullStars) + "☆".repeat(5 - fullStars);
-  };
+  const isSelected = (appId) => selected.some((s) => s.id === appId || s.applicationId === appId);
 
-  const EvaluationBox = ({ label, data }) => {
-    if (!data) return null;
-    return (
-      <div className="border border-gray-200 rounded p-2 bg-white">
-        <div className="flex justify-between items-center mb-1">
-          <span className="font-medium text-gray-700">{label}</span>
-          <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs">{data.rating}/5</span>
-        </div>
-        {data.comments && <p className="text-gray-500 text-xs line-clamp-1">{data.comments}</p>}
-      </div>
-    );
-  };
+  const filteredApps = applications.filter(app => 
+    (app.fullName || app.name || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  if (loading) return (
+    <div className="flex h-screen items-center justify-center bg-white">
+      <RefreshCcw className="w-5 h-5 animate-spin text-gray-400" />
+    </div>
+  );
 
   return (
-    <div className="bg-gray-50 min-h-screen w-full py-6 px-4 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FAFAFA] text-slate-900 font-sans antialiased">
       
-      {/* Header */}
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Career Onboarding</h1>
-          <p className="text-sm text-gray-500">Real-time application tracking</p>
+      {/* Simple Top Nav */}
+      <nav className="bg-white border-b border-gray-100 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-black rounded flex items-center justify-center">
+              <div className="w-3 h-3 bg-white rotate-45" />
+            </div>
+            <span className="font-semibold tracking-tight text-lg">Traxo Verification</span>
+          </div>
+          <button 
+            onClick={loadDashboardData}
+            className="text-gray-400 hover:text-black transition-colors"
+          >
+            <RefreshCcw size={18} />
+          </button>
         </div>
-        <button onClick={loadDashboardData} className="bg-white border px-4 py-2 rounded shadow-sm hover:bg-gray-50 text-sm">
-          Refresh Dashboard
-        </button>
-      </div>
+      </nav>
 
-      {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded border border-red-200 text-sm">{error}</div>}
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <p className="text-xs text-gray-400 uppercase font-bold">Total Apps</p>
-          <p className="text-3xl font-bold">{applications.length}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <p className="text-xs text-green-500 uppercase font-bold">Selected</p>
-          <p className="text-3xl font-bold">{selected.length}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <p className="text-xs text-blue-500 uppercase font-bold">Feedback</p>
-          <p className="text-3xl font-bold">{feedback.length}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* Main Table */}
-        <div className="xl:col-span-8 bg-white border rounded-lg shadow-sm overflow-hidden">
-          <div className="p-4 border-b bg-gray-50 font-bold">Recent Applications</div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="p-4">Name</th>
-                  <th className="p-4">Position</th>
-                  <th className="p-4">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {applications.map((app) => (
-                  <tr key={app.id} className="hover:bg-gray-50">
-                    <td className="p-4 font-medium">{app.fullName || app.name}</td>
-                    <td className="p-4 text-gray-500">{app.currentJobTitle || app.positionApplied}</td>
-                    <td className="p-4">
-                      {isSelected(app.id) ? 
-                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">Selected</span> : 
-                        <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded-full text-xs">Pending</span>
-                      }
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <main className="max-w-6xl mx-auto p-6 lg:p-10">
+        
+        {/* Minimal Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Total Applicants</p>
+            <p className="text-3xl font-light">{applications.length}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Selected Candidates</p>
+            <p className="text-3xl font-light text-blue-600">{selected.length}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Completion Rate</p>
+            <p className="text-3xl font-light">
+              {applications.length > 0 ? ((selected.length / applications.length) * 100).toFixed(0) : 0}%
+            </p>
           </div>
         </div>
 
-        {/* Feedback List/Detail Sidebar */}
-        <div className="xl:col-span-4 flex flex-col gap-6">
-          <div className="bg-white border rounded-lg shadow-sm h-full min-h-[500px] flex flex-col">
-            <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-              <span className="font-bold">{selectedFeedback ? "Feedback Details" : "Interviews"}</span>
-              {selectedFeedback && <button onClick={() => setSelectedFeedback(null)} className="text-blue-600 text-xs">← Back</button>}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          
+          {/* Applications Table - Clean List Style */}
+          <div className="lg:col-span-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Applications</h2>
+              <div className="relative">
+                <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="Filter by name..."
+                  className="bg-transparent border-b border-gray-200 pl-6 py-1 text-sm focus:border-black outline-none transition-all"
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
-            
-            <div className="flex-1 overflow-y-auto">
-              {!selectedFeedback ? (
-                feedback.map((f, i) => (
-                  <div key={i} onClick={() => setSelectedFeedback(f)} className="p-4 border-b hover:bg-gray-50 cursor-pointer">
-                    <p className="font-bold text-gray-800">{f.candidateName || "Candidate"}</p>
-                    <div className="flex justify-between text-xs text-gray-500 mt-1">
-                      <span>{f.positionApplied}</span>
-                      <span className="text-yellow-500">{renderStars(f.overallRating)}</span>
+
+            <div className="space-y-1">
+              {filteredApps.map((app) => (
+                <div 
+                  key={app.id} 
+                  className="group flex items-center justify-between p-4 rounded-xl hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-100"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-xs font-medium">
+                      {(app.fullName || app.name || "?").substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium">{app.fullName || app.name}</h4>
+                      <p className="text-xs text-gray-400">{app.currentJobTitle || app.positionApplied}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    {isSelected(app.id) ? (
+                      <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">Selected</span>
+                    ) : (
+                      <span className="text-[11px] font-medium text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full">Under Review</span>
+                    )}
+                    <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-900" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Selected Sidebar - Minimalist Card */}
+          <div className="lg:col-span-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-6">Selected Queue</h2>
+            <div className="bg-white border border-gray-100 rounded-2xl p-2 shadow-sm">
+              {selected.length > 0 ? (
+                selected.map((person, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <div>
+                      <p className="text-sm font-medium">{person.fullName || "Candidate"}</p>
+                      <p className="text-[10px] text-gray-400 font-mono">ID: {person.id || person.applicationId}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-4">
-                  <h3 className="text-lg font-bold">{selectedFeedback.candidateName}</h3>
-                  <div className="mt-4 grid grid-cols-1 gap-2">
-                    <EvaluationBox label="Technical" data={selectedFeedback.evaluation?.technicalKnowledge} />
-                    <EvaluationBox label="Culture" data={selectedFeedback.evaluation?.culturalFit} />
-                    <div className="mt-4 p-3 bg-gray-50 rounded text-sm italic">
-                      "{selectedFeedback.additionalComments || "No additional comments"}"
-                    </div>
-                  </div>
+                <div className="p-8 text-center text-gray-400 text-xs italic">
+                  No candidates selected yet.
                 </div>
               )}
             </div>
+            
+            <div className="mt-8 p-6 bg-blue-600 rounded-2xl text-white">
+              <h4 className="text-sm font-semibold mb-2">Internal Update</h4>
+              <p className="text-xs text-blue-100 leading-relaxed mb-4">
+                Quarterly onboarding goals are 80% complete. Keep it up!
+              </p>
+              <div className="h-1 bg-blue-400 rounded-full overflow-hidden">
+                <div className="h-full bg-white w-[80%]" />
+              </div>
+            </div>
           </div>
+
         </div>
-      </div>
+      </main>
     </div>
   );
 }

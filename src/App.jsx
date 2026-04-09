@@ -31,6 +31,12 @@ import AdminRegister from "../Admin/AdminRegister";
 import Reports from "./pages/HR/Reports";
 import AdminForgotPassword from "../Admin/AdminForgotPassword";
 
+import AttendenceReport from "./pages/HR/AttendenceReport";
+import EmployeeSummary from "./pages/HR/EmployeeSummary";
+import HiringReport from "./pages/HR/HiringReport";
+import LeaveReport from "./pages/HR/LeaveReport";
+import PayrollReport from "./pages/HR/PayrollReport";
+
 // Payroll
 
 function App() {
@@ -53,6 +59,12 @@ function App() {
         <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
         <Route path="/employee/leave-history" element={<EmployeeLeaveHistory />} />
         <Route path="/admin" element={<Navigate to="/admin/login" />} />
+         <Route path="/reports/attendence" element={<AttendenceReport/>} />
+          <Route path="/reports/payroll" element={<PayrollReport/>} />
+           <Route path="/reports/leave" element={<LeaveReport/>} />
+            <Route path="/reports/hiring" element={<HiringReport/>} />
+             <Route path="/reports/employee-summary" element={<EmployeeSummary/>} />
+
         
         {/* Admin Authentication Routes */}
         <Route path="/admin/login" element={<AdminLogin/>} />

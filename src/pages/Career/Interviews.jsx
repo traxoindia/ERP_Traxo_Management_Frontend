@@ -1284,17 +1284,7 @@ const Interviews = () => {
                                     Move to {nextStages[0].replace('_', ' ')}
                                   </button>
                                 )}
-                                
-                                {/* SELECT BUTTON - Moves candidate to SELECTED stage */}
-                                {candidate.status !== 'SELECTED' && candidate.status !== 'REJECTED' && (
-                                  <button
-                                    onClick={(e) => moveToSelectedStage(candidate, e)}
-                                    className="text-[10px] font-bold uppercase tracking-widest bg-emerald-600 text-white px-3 py-1 hover:bg-emerald-700 transition-all flex items-center gap-1"
-                                  >
-                                    <UserCheck size={12} />
-                                    Select
-                                  </button>
-                                )}
+                              
                                 
                                 {candidate.status !== 'REJECTED' && candidate.status !== 'SELECTED' && (
                                   <button
