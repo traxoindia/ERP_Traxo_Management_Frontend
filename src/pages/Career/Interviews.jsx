@@ -26,13 +26,17 @@ import {
   FileText,
   Download,
   ExternalLink,
-  Check
+  Check,
+  Shield,
+  Send,
+  Copy,
+  Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackNavbar from './BackNavbar';
 import { useNavigate } from 'react-router-dom';
 
-const API_BASE = "https://api.wemis.in/api/careers";
+const API_BASE = "https://api.wemis.in/api";
 
 const Interviews = () => {
   const navigate = useNavigate();
@@ -46,6 +50,10 @@ const Interviews = () => {
   const [interviews, setInterviews] = useState({});
   const [fetchingInterview, setFetchingInterview] = useState(false);
   const [feedbackModal, setFeedbackModal] = useState({ isOpen: false, candidate: null, interview: null });
+  const [generatingBGVLink, setGeneratingBGVLink] = useState({});
+  const [copiedBGVLink, setCopiedBGVLink] = useState(null);
+  const [bgvStatus, setBgvStatus] = useState({});
+  const [fetchingBgvStatus, setFetchingBgvStatus] = useState({});
   
   // Feedback form state - Matches correct API structure
   const [feedbackData, setFeedbackData] = useState({
@@ -81,13 +89,14 @@ const Interviews = () => {
     notes: ''
   });
 
-  // Available interview stages
+  // Available interview stages - Added BGV_IN_PROGRESS
   const interviewStages = [
     { value: 'SCREENING', label: 'Screening', color: 'purple' },
     { value: 'HR_ROUND', label: 'HR Round', color: 'blue' },
     { value: 'TECHNICAL_ROUND', label: 'Technical Round', color: 'indigo' },
     { value: 'MANAGERIAL_ROUND', label: 'Managerial Round', color: 'orange' },
     { value: 'SELECTED', label: 'Selected', color: 'green' },
+    { value: 'BGV_IN_PROGRESS', label: 'BGV In Progress', color: 'blue' },
     { value: 'REJECTED', label: 'Rejected', color: 'red' }
   ];
 
@@ -105,7 +114,7 @@ const Interviews = () => {
     }
 
     try {
-      const response = await axios.get(`${API_BASE}/applications/stage/${stage}`, {
+      const response = await axios.get(`${API_BASE}/careers/applications/stage/${stage}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -120,6 +129,9 @@ const Interviews = () => {
       if (Array.isArray(candidatesData)) {
         candidatesData.forEach(candidate => {
           fetchInterviewDetails(candidate.id);
+          if (stage === 'SELECTED' || stage === 'BGV_IN_PROGRESS') {
+            fetchBGVStatus(candidate.id);
+          }
         });
       }
       
@@ -135,11 +147,10 @@ const Interviews = () => {
   const fetchInterviewDetails = async (applicationId) => {
     if (!applicationId) return;
     
-    setFetchingInterview(true);
     const token = localStorage.getItem("accessToken");
 
     try {
-      const response = await axios.get(`${API_BASE}/interview/${applicationId}`, {
+      const response = await axios.get(`${API_BASE}/careers/interview/${applicationId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -170,12 +181,163 @@ const Interviews = () => {
           [applicationId]: null
         }));
       }
-    } finally {
-      setFetchingInterview(false);
     }
   };
 
-  // Submit feedback to API - Updated to match correct API structure
+  // Fetch BGV status for selected candidates
+  const fetchBGVStatus = async (applicationId) => {
+    setFetchingBgvStatus(prev => ({ ...prev, [applicationId]: true }));
+    
+    const token = localStorage.getItem("accessToken");
+    
+    try {
+      const response = await axios.get(`${API_BASE}/hr/bgv/application/${applicationId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      console.log(`BGV Status for ${applicationId}:`, response.data);
+      
+      const bgvData = response.data?.data || response.data;
+      setBgvStatus(prev => ({
+        ...prev,
+        [applicationId]: bgvData
+      }));
+      
+    } catch (err) {
+      console.error(`Fetch BGV Status Error for ${applicationId}:`, err);
+      if (err.response?.status === 404) {
+        setBgvStatus(prev => ({
+          ...prev,
+          [applicationId]: null
+        }));
+      }
+    } finally {
+      setFetchingBgvStatus(prev => ({ ...prev, [applicationId]: false }));
+    }
+  };
+
+  // Generate BGV Link for candidate
+  const generateBGVLink = async (applicationId, candidateName, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    setGeneratingBGVLink(prev => ({ ...prev, [applicationId]: true }));
+    
+    const token = localStorage.getItem("accessToken");
+    
+    try {
+      const response = await axios.get(`${API_BASE}/hr/bgv/get-link/${applicationId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      console.log('BGV Link Response:', response.data);
+      
+      const bgvLink = response.data?.data?.link || response.data?.link;
+      
+      if (bgvLink) {
+        await navigator.clipboard.writeText(bgvLink);
+        setCopiedBGVLink(applicationId);
+        setTimeout(() => setCopiedBGVLink(null), 3000);
+        
+        // Move candidate to BGV_IN_PROGRESS stage after generating link
+        await moveToBGVInProgress(applicationId, candidateName);
+        
+        alert(`BGV link copied to clipboard for ${candidateName}\n\nCandidate has been moved to BGV_IN_PROGRESS stage. Send this link to the candidate to start the onboarding process.`);
+      } else {
+        alert("Failed to generate BGV link. Please try again.");
+      }
+      
+    } catch (err) {
+      console.error('Generate BGV Link Error:', err);
+      const errorMsg = err.response?.data?.message || "Failed to generate BGV link";
+      alert(errorMsg);
+    } finally {
+      setGeneratingBGVLink(prev => ({ ...prev, [applicationId]: false }));
+    }
+  };
+
+  // Move candidate to BGV_IN_PROGRESS stage
+  const moveToBGVInProgress = async (applicationId, candidateName) => {
+    const token = localStorage.getItem("accessToken");
+    
+    try {
+      await axios.put(`${API_BASE}/careers/applications/${applicationId}/stage?stage=BGV_IN_PROGRESS`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      console.log(`Moved ${candidateName} to BGV_IN_PROGRESS stage`);
+      
+      // Refresh current stage if we're on SELECTED stage
+      if (selectedStage === 'SELECTED') {
+        fetchCandidatesByStage(selectedStage);
+      }
+      
+    } catch (err) {
+      console.error("Move to BGV_IN_PROGRESS Error:", err);
+    }
+  };
+
+  // Send BGV Link via email
+  const sendBGVLinkEmail = async (applicationId, candidateName, email, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    setGeneratingBGVLink(prev => ({ ...prev, [applicationId]: true }));
+    
+    const token = localStorage.getItem("accessToken");
+    
+    try {
+      // First get the link
+      const linkResponse = await axios.get(`${API_BASE}/hr/bgv/get-link/${applicationId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const bgvLink = linkResponse.data?.data?.link || linkResponse.data?.link;
+      
+      if (!bgvLink) {
+        throw new Error("Failed to generate BGV link");
+      }
+      
+      // Send email
+      await axios.post(`${API_BASE}/hr/bgv/send-link`, {
+        applicationId,
+        email,
+        name: candidateName,
+        link: bgvLink
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Move candidate to BGV_IN_PROGRESS stage after sending email
+      await moveToBGVInProgress(applicationId, candidateName);
+      
+      alert(`BGV link sent successfully to ${email}\n\nCandidate has been moved to BGV_IN_PROGRESS stage.`);
+      
+    } catch (err) {
+      console.error('Send BGV Link Email Error:', err);
+      alert(err.response?.data?.message || "Failed to send BGV link email");
+    } finally {
+      setGeneratingBGVLink(prev => ({ ...prev, [applicationId]: false }));
+    }
+  };
+
+  // Navigate to BGV Verification Dashboard
+  const goToBGVDashboard = () => {
+    navigate('/jobs/bgv-verification');
+  };
+
+  // Submit feedback to API
   const handleSubmitFeedback = async (e) => {
     e.preventDefault();
     
@@ -185,7 +347,6 @@ const Interviews = () => {
     const token = localStorage.getItem("accessToken");
 
     try {
-      // Prepare payload matching the API structure
       const feedbackPayload = {
         applicationId: feedbackModal.candidate.id,
         candidateName: feedbackData.candidateName,
@@ -211,8 +372,7 @@ const Interviews = () => {
 
       console.log("Submitting feedback:", feedbackPayload);
 
-      // POST to the correct feedback endpoint
-      const response = await axios.post(`${API_BASE}/feedback`, feedbackPayload, {
+      const response = await axios.post(`${API_BASE}/careers/feedback`, feedbackPayload, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -245,7 +405,6 @@ const Interviews = () => {
       event.stopPropagation();
     }
     
-    // Pre-populate feedback form with candidate and interview data
     setFeedbackData({
       applicationId: candidate.id,
       candidateName: candidate.fullName || '',
@@ -264,7 +423,7 @@ const Interviews = () => {
       overallRating: 3,
       strengths: '',
       areasOfImprovement: '',
-      recommendation: candidate.recommendation|| "HIRE",
+      recommendation: "HIRE",
       additionalComments: '',
       status: 'SUBMITTED'
     });
@@ -327,10 +486,9 @@ const Interviews = () => {
 
     setLoading(true);
     const token = localStorage.getItem("accessToken");
-    console.log(candidate.id)
 
     try {
-      await axios.put(`${API_BASE}/applications/${candidate.id}/stage?stage=SELECTED`, {}, {
+      await axios.put(`${API_BASE}/careers/applications/${candidate.id}/stage?stage=SELECTED`, {}, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -340,7 +498,6 @@ const Interviews = () => {
       fetchCandidatesByStage(selectedStage);
       
       if (selectedCandidate && selectedCandidate.id === candidate.id) {
-        console.log(selectedCandidate)
         setSelectedCandidate(null);
         setViewMode('list');
       }
@@ -371,7 +528,7 @@ const Interviews = () => {
     const token = localStorage.getItem("accessToken");
 
     try {
-      await axios.put(`${API_BASE}/applications/${candidate.id}/stage?stage=${nextStage}`, {}, {
+      await axios.put(`${API_BASE}/careers/applications/${candidate.id}/stage?stage=${nextStage}`, {}, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -417,7 +574,7 @@ const Interviews = () => {
 
       console.log("Scheduling interview with payload:", interviewPayload);
 
-      const response = await axios.post(`${API_BASE}/interview/schedule`, interviewPayload, {
+      const response = await axios.post(`${API_BASE}/careers/interview/schedule`, interviewPayload, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -426,7 +583,7 @@ const Interviews = () => {
 
       console.log("Schedule interview response:", response.data);
 
-      await axios.put(`${API_BASE}/applications/${selectedCandidate.id}/stage?stage=${scheduleData.interviewType}`, {}, {
+      await axios.put(`${API_BASE}/careers/applications/${selectedCandidate.id}/stage?stage=${scheduleData.interviewType}`, {}, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -467,14 +624,18 @@ const Interviews = () => {
   };
 
   // Cancel interview
-  const cancelInterview = async (applicationId) => {
+  const cancelInterview = async (applicationId, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
     if (!window.confirm("Are you sure you want to cancel this interview?")) return;
     
     setLoading(true);
     const token = localStorage.getItem("accessToken");
 
     try {
-      await axios.delete(`${API_BASE}/interview/${applicationId}`, {
+      await axios.delete(`${API_BASE}/careers/interview/${applicationId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -503,10 +664,16 @@ const Interviews = () => {
     setSelectedCandidate(candidate);
     setViewMode('detail');
     fetchInterviewDetails(candidate.id);
+    if (candidate.status === 'SELECTED' || candidate.status === 'BGV_IN_PROGRESS') {
+      fetchBGVStatus(candidate.id);
+    }
   };
 
   // Show schedule form
-  const showScheduleForm = (candidate) => {
+  const showScheduleForm = (candidate, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
     setSelectedCandidate(candidate);
     setViewMode('schedule');
   };
@@ -548,7 +715,7 @@ const Interviews = () => {
 
   // Get next stages based on current stage
   const getNextStages = (currentStage) => {
-    const stageOrder = ['SCREENING', 'HR_ROUND', 'TECHNICAL_ROUND', 'MANAGERIAL_ROUND', 'SELECTED'];
+    const stageOrder = ['SCREENING', 'HR_ROUND', 'TECHNICAL_ROUND', 'MANAGERIAL_ROUND', 'SELECTED', 'BGV_IN_PROGRESS'];
     const currentIndex = stageOrder.indexOf(currentStage);
     
     if (currentIndex === -1 || currentIndex === stageOrder.length - 1) {
@@ -556,6 +723,28 @@ const Interviews = () => {
     }
     
     return [stageOrder[currentIndex + 1]];
+  };
+
+  // Get BGV status badge
+  const getBGVStatusBadge = (status) => {
+    const config = {
+      PENDING: { color: 'yellow', text: 'BGV Pending', icon: Clock },
+      BGV_IN_PROGRESS: { color: 'cyan', text: 'BGV In Progress', icon: Shield },
+      SUBMITTED: { color: 'blue', text: 'BGV Submitted', icon: FileText },
+      DOCUMENTS_UPLOADED: { color: 'indigo', text: 'Documents Uploaded', icon: FileText },
+      UNDER_REVIEW: { color: 'orange', text: 'Under Review', icon: Eye },
+      APPROVED: { color: 'green', text: 'BGV Approved', icon: CheckCircle },
+      REJECTED: { color: 'red', text: 'BGV Rejected', icon: XCircle }
+    };
+    
+    const { color, text, icon: Icon } = config[status] || config.PENDING;
+    
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-${color}-50 text-${color}-600`}>
+        <Icon size={10} />
+        {text}
+      </span>
+    );
   };
 
   // Filter candidates
@@ -571,7 +760,7 @@ const Interviews = () => {
   }, [selectedStage]);
 
   // Interview Details Component
-  const InterviewDetails = ({ candidateId }) => {
+  const InterviewDetails = ({ candidateId, onCancel }) => {
     const [interviewsList, setInterviewsList] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -594,7 +783,7 @@ const Interviews = () => {
             }
             
             try {
-                const response = await axios.get(`${API_BASE}/interview/${candidateId}`, {
+                const response = await axios.get(`${API_BASE}/careers/interview/${candidateId}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json"
@@ -670,10 +859,10 @@ const Interviews = () => {
                     Scheduled Interviews ({interviewsList.length})
                 </h3>
                 <button
-                    onClick={() => cancelInterview(candidateId)}
+                    onClick={() => onCancel(candidateId)}
                     className="text-[10px] text-red-600 hover:text-red-700 uppercase tracking-wider"
                 >
-                    Cancel
+                    Cancel All
                 </button>
             </div>
             
@@ -706,7 +895,7 @@ const Interviews = () => {
                     <div className="grid grid-cols-2 gap-4 mt-3">
                         <div>
                             <p className="text-[10px] text-gray-500 uppercase tracking-widest">Interviewer</p>
-                            <p className="text-sm">{interview.interviewerName}</p>
+                            <p className="text-sm">{interview.interviewerName || 'Not Assigned'}</p>
                         </div>
                         
                         {interview.interviewLink && (
@@ -744,7 +933,7 @@ const Interviews = () => {
     <>
       <BackNavbar />
 
-      {/* Feedback Modal - Updated to match correct API structure */}
+      {/* Feedback Modal */}
       <AnimatePresence>
         {feedbackModal.isOpen && (
           <motion.div
@@ -809,7 +998,7 @@ const Interviews = () => {
                   </div>
                 </div>
 
-                {/* Evaluation Section - 5 Categories */}
+                {/* Evaluation Section */}
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-widest mb-4">Evaluation Criteria</h3>
                   <div className="space-y-6">
@@ -1021,9 +1210,7 @@ const Interviews = () => {
                     onChange={(e) => setFeedbackData({...feedbackData, recommendation: e.target.value})}
                     className="w-full px-0 py-2 border-b border-gray-100 outline-none focus:border-black transition-colors text-sm"
                   >
-            
                     <option value="HIRE">Hire - Move to Next Round</option>
-
                     <option value="NO_HIRE">No Hire - Reject</option>
                   </select>
                 </div>
@@ -1092,12 +1279,23 @@ const Interviews = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all"
-            >
-              Back to Jobs
-            </button>
+            <div className="flex items-center gap-3">
+              {(selectedStage === 'SELECTED' || selectedStage === 'BGV_IN_PROGRESS') && viewMode === 'list' && (
+                <button
+                  onClick={goToBGVDashboard}
+                  className="inline-flex items-center gap-2 bg-purple-600 text-white px-4 py-2.5 rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-purple-700 transition-all"
+                >
+                  <Shield size={14} />
+                  BGV Dashboard
+                </button>
+              )}
+              <button
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all"
+              >
+                Back to Jobs
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1185,6 +1383,7 @@ const Interviews = () => {
                         const nextStages = getNextStages(candidate.status || selectedStage);
                         const hasInterview = interviews[candidate.id];
                         const interview = interviews[candidate.id];
+                        const bgvData = bgvStatus[candidate.id];
                         
                         return (
                           <tr 
@@ -1199,7 +1398,13 @@ const Interviews = () => {
                               <p className="text-[10px] text-gray-400 mt-0.5">
                                 {candidate.currentJobTitle || "Position not specified"}
                               </p>
-                            </td>
+                              {/* BGV Status for SELECTED or BGV_IN_PROGRESS stage */}
+                              {(selectedStage === 'SELECTED' || selectedStage === 'BGV_IN_PROGRESS') && bgvData && (
+                                <div className="mt-2">
+                                  {getBGVStatusBadge(bgvData.status)}
+                                </div>
+                              )}
+                             </td>
                             <td className="px-6 py-5">
                               <p className="text-gray-700 text-xs flex items-center gap-1">
                                 <Mail size={10} /> {candidate.emailAddress || "No email"}
@@ -1207,16 +1412,16 @@ const Interviews = () => {
                               <p className="text-gray-400 text-[10px] mt-0.5 flex items-center gap-1">
                                 <Phone size={10} /> {candidate.phoneNumber || "No phone"}
                               </p>
-                            </td>
+                             </td>
                             <td className="px-6 py-5 text-gray-600">
                               {candidate.appliedPosition || "N/A"}
-                            </td>
+                             </td>
                             <td className="px-6 py-5 text-gray-600">
                               {candidate.totalExperience || "0"} years
-                            </td>
+                             </td>
                             <td className="px-6 py-5 text-gray-400 text-[10px]">
                               {formatDate(candidate.appliedAt)}
-                            </td>
+                             </td>
                             <td className="px-6 py-5">
                               {hasInterview ? (
                                 <span className="inline-flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-2 py-1">
@@ -1226,7 +1431,7 @@ const Interviews = () => {
                               ) : (
                                 <span className="text-[10px] text-gray-400">Not scheduled</span>
                               )}
-                            </td>
+                             </td>
                             <td className="px-6 py-5 text-right">
                               <div className="flex items-center justify-end gap-2 flex-wrap">
                                 <button
@@ -1239,8 +1444,8 @@ const Interviews = () => {
                                   View
                                 </button>
                                 
-                                {/* FEEDBACK BUTTON - Only shows when interview is scheduled */}
-                                {hasInterview && (
+                                {/* FEEDBACK BUTTON */}
+                                {hasInterview && candidate.status !== 'SELECTED' && candidate.status !== 'BGV_IN_PROGRESS' && candidate.status !== 'REJECTED' && (
                                   <button
                                     onClick={(e) => openFeedbackModal(candidate, interview, e)}
                                     className="text-[10px] font-bold uppercase tracking-widest bg-purple-600 text-white px-3 py-1 hover:bg-purple-700 transition-all flex items-center gap-1"
@@ -1250,11 +1455,11 @@ const Interviews = () => {
                                   </button>
                                 )}
                                 
-                                {candidate.status !== 'SELECTED' && candidate.status !== 'REJECTED' && !hasInterview && (
+                                {candidate.status !== 'SELECTED' && candidate.status !== 'BGV_IN_PROGRESS' && candidate.status !== 'REJECTED' && !hasInterview && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      showScheduleForm(candidate);
+                                      showScheduleForm(candidate, e);
                                     }}
                                     className="text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white px-3 py-1 hover:bg-blue-700 transition-all flex items-center gap-1"
                                   >
@@ -1263,11 +1468,11 @@ const Interviews = () => {
                                   </button>
                                 )}
                                 
-                                {hasInterview && candidate.status !== 'SELECTED' && candidate.status !== 'REJECTED' && (
+                                {hasInterview && candidate.status !== 'SELECTED' && candidate.status !== 'BGV_IN_PROGRESS' && candidate.status !== 'REJECTED' && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      showScheduleForm(candidate);
+                                      showScheduleForm(candidate, e);
                                     }}
                                     className="text-[10px] font-bold uppercase tracking-widest bg-yellow-600 text-white px-3 py-1 hover:bg-yellow-700 transition-all flex items-center gap-1"
                                   >
@@ -1284,9 +1489,70 @@ const Interviews = () => {
                                     Move to {nextStages[0].replace('_', ' ')}
                                   </button>
                                 )}
-                              
                                 
-                                {candidate.status !== 'REJECTED' && candidate.status !== 'SELECTED' && (
+                                {/* BGV Actions for SELECTED stage */}
+                                {selectedStage === 'SELECTED' && candidate.status === 'SELECTED' && (
+                                  <>
+                                    <button
+                                      onClick={(e) => generateBGVLink(candidate.id, candidate.fullName, e)}
+                                      disabled={generatingBGVLink[candidate.id]}
+                                      className="text-[10px] font-bold uppercase tracking-widest bg-purple-600 text-white px-3 py-1 hover:bg-purple-700 transition-all flex items-center gap-1"
+                                    >
+                                      {generatingBGVLink[candidate.id] ? (
+                                        <Loader2 className="animate-spin" size={12} />
+                                      ) : copiedBGVLink === candidate.id ? (
+                                        <Check size={12} />
+                                      ) : (
+                                        <Shield size={12} />
+                                      )}
+                                      Start BGV
+                                    </button>
+                                  </>
+                                )}
+                                
+                                {/* BGV Actions for BGV_IN_PROGRESS stage */}
+                                {selectedStage === 'BGV_IN_PROGRESS' && candidate.status === 'BGV_IN_PROGRESS' && (
+                                  <>
+                                    {bgvData && bgvData.status === 'APPROVED' && (
+                                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1">
+                                        ✓ BGV Cleared
+                                      </span>
+                                    )}
+                                    {bgvData && bgvData.status === 'REJECTED' && (
+                                      <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1">
+                                        BGV Failed
+                                      </span>
+                                    )}
+                                    {(!bgvData || (bgvData.status !== 'APPROVED' && bgvData.status !== 'REJECTED')) && (
+                                      <>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            generateBGVLink(candidate.id, candidate.fullName, e);
+                                          }}
+                                          disabled={generatingBGVLink[candidate.id]}
+                                          className="text-[10px] font-bold uppercase tracking-widest bg-purple-600 text-white px-3 py-1 hover:bg-purple-700 transition-all flex items-center gap-1"
+                                        >
+                                          <Copy size={12} />
+                                          Regenerate Link
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            sendBGVLinkEmail(candidate.id, candidate.fullName, candidate.emailAddress, e);
+                                          }}
+                                          disabled={generatingBGVLink[candidate.id]}
+                                          className="text-[10px] font-bold uppercase tracking-widest bg-indigo-600 text-white px-3 py-1 hover:bg-indigo-700 transition-all flex items-center gap-1"
+                                        >
+                                          <Send size={12} />
+                                          Resend Email
+                                        </button>
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                                
+                                {candidate.status !== 'REJECTED' && candidate.status !== 'SELECTED' && candidate.status !== 'BGV_IN_PROGRESS' && (
                                   <button
                                     onClick={(e) => moveToNextStage(candidate, 'REJECTED', e)}
                                     className="text-[10px] font-bold uppercase tracking-widest bg-red-600 text-white px-3 py-1 hover:bg-red-700 transition-all flex items-center gap-1"
@@ -1296,7 +1562,7 @@ const Interviews = () => {
                                   </button>
                                 )}
                               </div>
-                            </td>
+                             </td>
                           </tr>
                         );
                       }) : (
@@ -1310,7 +1576,7 @@ const Interviews = () => {
                   </motion.table>
                 )}
 
-                {/* DETAIL VIEW */}
+                {/* DETAIL VIEW - Same as before but updated for BGV_IN_PROGRESS */}
                 {viewMode === 'detail' && selectedCandidate && (
                   <motion.div
                     key="detail-view"
@@ -1329,8 +1595,8 @@ const Interviews = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {/* Feedback Button in Detail View */}
-                        {interviews[selectedCandidate.id] && (
+                        {/* Feedback Button */}
+                        {interviews[selectedCandidate.id] && selectedCandidate.status !== 'SELECTED' && selectedCandidate.status !== 'BGV_IN_PROGRESS' && selectedCandidate.status !== 'REJECTED' && (
                           <button
                             onClick={() => openFeedbackModal(selectedCandidate, interviews[selectedCandidate.id])}
                             className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-purple-700 transition-all"
@@ -1339,15 +1605,17 @@ const Interviews = () => {
                             Feedback
                           </button>
                         )}
-                        <button
-                          onClick={() => showScheduleForm(selectedCandidate)}
-                          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all"
-                        >
-                          <Calendar size={14} />
-                          {interviews[selectedCandidate.id] ? 'Reschedule Interview' : 'Schedule Interview'}
-                        </button>
-                        {/* Select Button in Detail View */}
-                        {selectedCandidate.status !== 'SELECTED' && selectedCandidate.status !== 'REJECTED' && (
+                        {selectedCandidate.status !== 'SELECTED' && selectedCandidate.status !== 'BGV_IN_PROGRESS' && selectedCandidate.status !== 'REJECTED' && (
+                          <button
+                            onClick={() => showScheduleForm(selectedCandidate)}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all"
+                          >
+                            <Calendar size={14} />
+                            {interviews[selectedCandidate.id] ? 'Reschedule Interview' : 'Schedule Interview'}
+                          </button>
+                        )}
+                        {/* Select Button */}
+                        {selectedCandidate.status !== 'SELECTED' && selectedCandidate.status !== 'BGV_IN_PROGRESS' && selectedCandidate.status !== 'REJECTED' && (
                           <button
                             onClick={() => moveToSelectedStage(selectedCandidate)}
                             className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all"
@@ -1356,25 +1624,49 @@ const Interviews = () => {
                             Select Candidate
                           </button>
                         )}
+                        {/* BGV Actions for SELECTED or BGV_IN_PROGRESS stage */}
+                        {(selectedCandidate.status === 'SELECTED' || selectedCandidate.status === 'BGV_IN_PROGRESS') && (
+                          <>
+                            <button
+                              onClick={() => generateBGVLink(selectedCandidate.id, selectedCandidate.fullName)}
+                              disabled={generatingBGVLink[selectedCandidate.id]}
+                              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-purple-700 transition-all"
+                            >
+                              {generatingBGVLink[selectedCandidate.id] ? (
+                                <Loader2 className="animate-spin" size={14} />
+                              ) : (
+                                <Shield size={14} />
+                              )}
+                              {selectedCandidate.status === 'SELECTED' ? 'Start BGV' : 'Regenerate Link'}
+                            </button>
+                            <button
+                              onClick={() => sendBGVLinkEmail(selectedCandidate.id, selectedCandidate.fullName, selectedCandidate.emailAddress)}
+                              disabled={generatingBGVLink[selectedCandidate.id]}
+                              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-indigo-700 transition-all"
+                            >
+                              <Send size={14} />
+                              Send Email
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
 
                     {/* Current Stage Badge */}
-                    <div className="mb-6">
+                    <div className="mb-6 flex items-center gap-3">
                       <span className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-${getStageColor(selectedCandidate.status)}-100 text-${getStageColor(selectedCandidate.status)}-700`}>
                         Current Stage: {selectedCandidate.status || selectedStage}
                       </span>
+                      {(selectedCandidate.status === 'SELECTED' || selectedCandidate.status === 'BGV_IN_PROGRESS') && bgvStatus[selectedCandidate.id] && (
+                        getBGVStatusBadge(bgvStatus[selectedCandidate.id].status)
+                      )}
                     </div>
 
                     {/* Interview Details */}
-                    {fetchingInterview ? (
-                      <div className="mb-8 p-4 border border-gray-100 flex items-center gap-2">
-                        <Loader2 className="animate-spin" size={14} />
-                        <span className="text-[10px] text-gray-400">Loading interview details...</span>
-                      </div>
-                    ) : (
-                      <InterviewDetails candidateId={selectedCandidate.id} />
-                    )}
+                    <InterviewDetails 
+                      candidateId={selectedCandidate.id} 
+                      onCancel={(id) => cancelInterview(id)}
+                    />
 
                     {/* Quick Actions */}
                     <div className="flex gap-3 mb-8">
@@ -1387,7 +1679,7 @@ const Interviews = () => {
                           Move to {stage.replace('_', ' ')}
                         </button>
                       ))}
-                      {selectedCandidate.status !== 'SELECTED' && selectedCandidate.status !== 'REJECTED' && (
+                      {selectedCandidate.status !== 'SELECTED' && selectedCandidate.status !== 'BGV_IN_PROGRESS' && selectedCandidate.status !== 'REJECTED' && (
                         <button
                           onClick={() => moveToSelectedStage(selectedCandidate)}
                           className="px-4 py-2 bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2"
@@ -1396,7 +1688,7 @@ const Interviews = () => {
                           Select Candidate
                         </button>
                       )}
-                      {selectedCandidate.status !== 'REJECTED' && selectedCandidate.status !== 'SELECTED' && (
+                      {selectedCandidate.status !== 'REJECTED' && selectedCandidate.status !== 'SELECTED' && selectedCandidate.status !== 'BGV_IN_PROGRESS' && (
                         <button
                           onClick={() => moveToNextStage(selectedCandidate, 'REJECTED')}
                           className="px-4 py-2 bg-red-600 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-red-700 transition-all"
@@ -1406,6 +1698,7 @@ const Interviews = () => {
                       )}
                     </div>
 
+                    {/* Rest of detail view remains the same */}
                     {/* Personal Information */}
                     <h3 className="text-sm font-bold uppercase tracking-widest mb-4">Personal Information</h3>
                     <div className="grid grid-cols-3 gap-6 mb-8">
@@ -1508,7 +1801,7 @@ const Interviews = () => {
                   </motion.div>
                 )}
 
-                {/* SCHEDULE INTERVIEW VIEW */}
+                {/* SCHEDULE INTERVIEW VIEW - Same as before */}
                 {viewMode === 'schedule' && selectedCandidate && (
                   <motion.div
                     key="schedule-view"

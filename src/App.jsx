@@ -36,6 +36,10 @@ import EmployeeSummary from "./pages/HR/EmployeeSummary";
 import HiringReport from "./pages/HR/HiringReport";
 import LeaveReport from "./pages/HR/LeaveReport";
 import PayrollReport from "./pages/HR/PayrollReport";
+import BGVVerification from "./pages/Career/BGVVerification";
+import OnboardingSuccess from "./pages/Career/OnboardingSuccess";
+import Onboarding from "./pages/Career/Onboarding";
+import BGVPortal from "./pages/Career/BGVPportal";
 
 // Payroll
 
@@ -45,11 +49,11 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
-      
+
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegistrationPage />} />
         <Route path="/attendance" element={<AttendanceStatusTable />} />
-         <Route path="/calender" element={<CalendarView/>} />
+        <Route path="/calender" element={<CalendarView />} />
         {/* General Routes */}
         <Route path="/recruitment" element={<Recruitment />} />
         <Route path="/employees" element={<AddEmployee />} />
@@ -59,18 +63,22 @@ function App() {
         <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
         <Route path="/employee/leave-history" element={<EmployeeLeaveHistory />} />
         <Route path="/admin" element={<Navigate to="/admin/login" />} />
-         <Route path="/reports/attendence" element={<AttendenceReport/>} />
-          <Route path="/reports/payroll" element={<PayrollReport/>} />
-           <Route path="/reports/leave" element={<LeaveReport/>} />
-            <Route path="/reports/hiring" element={<HiringReport/>} />
-             <Route path="/reports/employee-summary" element={<EmployeeSummary/>} />
+        <Route path="/reports/attendence" element={<AttendenceReport />} />
+        <Route path="/reports/payroll" element={<PayrollReport />} />
+        <Route path="/reports/leave" element={<LeaveReport />} />
+        <Route path="/reports/hiring" element={<HiringReport />} />
+        <Route path="/reports/employee-summary" element={<EmployeeSummary />} />
 
-        
+        <Route path="/jobs/bgv-verification" element={<BGVVerification />} />
+        {/* Add success page */}
+        <Route path="/onboarding-success" element={<OnboardingSuccess />} />
+
+        <Route path="/bgv-portal" element={<BGVPortal />} />
         {/* Admin Authentication Routes */}
-        <Route path="/admin/login" element={<AdminLogin/>} />
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/register" element={<AdminRegister />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
-         <Route path="/admin/forgot-password" element={<AdminForgotPassword/>} />
+        <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
         <Route
           path="/employee-checkin"
           element={
@@ -117,7 +125,7 @@ function App() {
           path="/jobs/onboarding"
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>
-              <OnboardingDashboard />
+              <Onboarding />
             </ProtectedRoute>
           }
         />
@@ -146,11 +154,11 @@ function App() {
             </ProtectedRoute>
           }
         />
-        
+
         {/* Attendance Routes */}
         {/* Payroll Routes */}
         <Route path="/payroll/page" element={<HRPayroll />} />
-       
+
 
         <Route path="/employee/payslips" element={<MyPayslips />} />
         {/* User Dashboard */}

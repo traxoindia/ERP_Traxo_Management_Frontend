@@ -194,7 +194,7 @@ function Sidebar() {
       subItems: [
         { label: "Post Job", path: "/jobs/post", icon: Briefcase },
         { label: "Onboarding", path: "/jobs/onboarding", icon: GitPullRequest },
-        { label: "Verification", path: "/jobs/Verification", icon: BarChart3 },
+        { label: "Verification", path: "/jobs/bgv-verification", icon: BarChart3 },
         { label: "Interviews", path: "/jobs/interviews", icon: UserCircle },
       ]
     },

@@ -19,6 +19,7 @@ import {
   Activity
 } from 'lucide-react';
 import AdminNavbar from './AdminNavbar';
+import BranchManager from './BranchManager';
 
 const AdminDashboard = () => {
   const stats = [
@@ -57,6 +58,7 @@ const AdminDashboard = () => {
     <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
       {/* Navbar */}
       <AdminNavbar />
+      <BranchManager/>
 
       {/* Main Content - Fixed height with overflow-y auto for content only */}
       <main className="flex-1 overflow-y-auto">
