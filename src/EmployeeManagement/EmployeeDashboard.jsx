@@ -1,21 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Calendar, User } from 'lucide-react';
+import { Home, Calendar, User, LogOut } from 'lucide-react';
 import EmployeeNavbar from './EmployeeNavbar';
 import EmployeeSidebar from './EmployeeSidebar';
 
 const EmployeeDashboard = () => {
     const [activeTab, setActiveTab] = useState('checkin');
-    const [userName, setUserName] = useState('Employee');
+    const [userData, setUserData] = useState({
+        name: 'Employee',
+        id: '',
+        designation: '',
+        profilePic: ''
+    });
     const navigate = useNavigate();
 
-    // Fetch the name from localStorage when the dashboard loads
     useEffect(() => {
+        // Retrieve data from localStorage
         const storedName = localStorage.getItem('name');
-        if (storedName) {
-            setUserName(storedName);
+        const storedId = localStorage.getItem('employeeId');
+        const storedDesignation = localStorage.getItem('designation');
+        const storedPic = localStorage.getItem('profilePic');
+
+        // Check if token exists, if not redirect to login
+        if (!localStorage.getItem('accessToken')) {
+            navigate('/');
+        } else {
+            setUserData({
+                name: storedName || 'Employee',
+                id: storedId || '',
+                designation: storedDesignation || '',
+                profilePic: storedPic || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'
+            });
         }
-    }, []);
+    }, [navigate]);
 
     const tabs = [
         { id: 'checkin', label: 'Check In/Out', icon: Home },
@@ -30,20 +47,26 @@ const EmployeeDashboard = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Passing handleLogout to Navbar so the logout button works there too */}
             <EmployeeNavbar onLogout={handleLogout} />
             <EmployeeSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
             
             <main className="md:ml-64 pt-0">
                 {/* Welcome Header */}
                 <div className="bg-white border-b border-gray-200 px-6 py-8">
-                    <div className="max-w-full">
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-700">
-                            Hello, <span className="text-orange-600">{userName}</span>! 
-                        </h1>
-                        <p className="text-gray-500 mt-1">
-                            Welcome back. Here is what's happening with your attendance today.
-                        </p>
+                    <div className="flex items-center gap-4">
+                        <img 
+                            src={userData.profilePic} 
+                            alt="Profile" 
+                            className="w-16 h-16 rounded-full border-2 border-orange-100"
+                        />
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-bold text-gray-700">
+                                Hello, <span className="text-orange-600">{userData.name}</span>! 
+                            </h1>
+                            <p className="text-gray-500 mt-1">
+                                {userData.designation} | Employee ID: {userData.id}
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -56,10 +79,9 @@ const EmployeeDashboard = () => {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`flex-1 py-3 flex flex-col items-center gap-1 transition ${activeTab === tab.id
-                                            ? 'text-blue-600 border-b-2 border-blue-600'
-                                            : 'text-gray-500'
-                                        }`}
+                                    className={`flex-1 py-3 flex flex-col items-center gap-1 transition ${
+                                        activeTab === tab.id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'
+                                    }`}
                                 >
                                     <Icon className="w-5 h-5" />
                                     <span className="text-xs">{tab.label}</span>
@@ -73,23 +95,30 @@ const EmployeeDashboard = () => {
                 <div className="p-6 max-w-7xl mx-auto">
                     {activeTab === 'checkin' && (
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                            <h2 className="text-lg font-semibold mb-4">Attendance Actions</h2>
-                            {/* Your Check-in/Out Components go here */}
-                            <p className="text-gray-400 italic">Check-in system ready...</p>
-                        </div>
-                    )}
-
-                    {activeTab === 'history' && (
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                            <h2 className="text-lg font-semibold mb-4">Your Attendance History</h2>
-                            {/* History Table goes here */}
+                            <h2 className="text-lg font-semibold mb-4 text-gray-700">Attendance Actions</h2>
+                            <div className="p-10 border-2 border-dashed border-gray-200 rounded-xl text-center">
+                                <p className="text-gray-400 italic">Attendance system components go here...</p>
+                            </div>
                         </div>
                     )}
 
                     {activeTab === 'profile' && (
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                            <h2 className="text-lg font-semibold mb-4">Employee Profile</h2>
-                            {/* Profile details go here */}
+                            <h2 className="text-lg font-semibold mb-4 text-gray-700">Your Detailed Profile</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="p-4 bg-gray-50 rounded-lg">
+                                    <p className="text-sm text-gray-500">Full Name</p>
+                                    <p className="font-medium">{userData.name}</p>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-lg">
+                                    <p className="text-sm text-gray-500">Employee ID</p>
+                                    <p className="font-medium">{userData.id}</p>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-lg">
+                                    <p className="text-sm text-gray-500">Current Designation</p>
+                                    <p className="font-medium">{userData.designation}</p>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

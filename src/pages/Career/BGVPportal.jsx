@@ -2,421 +2,373 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
-  User, Mail, Phone, MapPin, CreditCard, Banknote, AlertCircle,
-  CheckCircle, Loader2, ArrowLeft, Briefcase, FileText, Upload,
-  X, Eye, Calendar, Award, GraduationCap, Building, Shield,
-  Heart, Copy, ExternalLink, ChevronRight, ChevronLeft,
-  Save, Users, Star, Clock
+  User, Mail, Phone, Calendar, MapPin, CreditCard, Shield,
+  Briefcase, GraduationCap, Upload, CheckCircle, XCircle,
+  Loader2, AlertCircle, ArrowLeft, Save, FileText, Building,
+  Banknote, Users, Plus, Trash2, Eye, EyeOff
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const API_BASE = "https://api.wemis.in/api";
-const FRONTEND_URL = "https://traxoerp.com";
 
 const BGVPortal = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Get token from URL params
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [step, setStep] = useState(1);
-  const [submissionId, setSubmissionId] = useState(null);
-  const [uploadedDocs, setUploadedDocs] = useState({
-    AADHAR_CARD: null,
-    PAN_CARD: null,
-    DEGREE_CERTIFICATE: null,
-    PHOTOGRAPH: null
-  });
-  const [uploading, setUploading] = useState({});
-  const [existingStatus, setExistingStatus] = useState(null);
+  const [token, setToken] = useState(null);
+  const [candidateData, setCandidateData] = useState(null);
+  const [bgvStatus, setBgvStatus] = useState(null);
+  const [bgvId, setBgvId] = useState(null);
   
-  // BGV Form State
+  // Form state for BGV submission
   const [formData, setFormData] = useState({
     fullName: '',
     dob: '',
     contactNumber: '',
     currentAddress: '',
-    permanentAddress: '',
     aadharNumber: '',
     panNumber: '',
     educationDetails: [
       { qualification: '', university: '', passingYear: '', percentage: '' }
     ],
     employmentHistory: [
-      { companyName: '', designation: '', duration: '', experienceLetter: false }
+      { companyName: '', designation: '', duration: '', responsibilities: '' }
     ],
     references: [
-      { name: '', contactNumber: '', relationship: '', company: '' }
+      { name: '', contactNumber: '', relationship: '' }
     ]
   });
   
-  // Onboarding Form State
-  const [onboardingData, setOnboardingData] = useState({
-    bankName: '',
-    accountNumber: '',
-    confirmAccountNumber: '',
-    ifscCode: '',
-    upiId: '',
-    emergencyContactName: '',
-    emergencyContactNumber: '',
-    emergencyRelationship: '',
-    bloodGroup: '',
-    dateOfJoining: ''
+  // Document upload state
+  const [documents, setDocuments] = useState({
+    AADHAR_CARD: null,
+    PAN_CARD: null,
+    DEGREE_CERTIFICATE: null,
+    EXPERIENCE_LETTER: null,
+    PHOTOGRAPH: null
   });
   
-  // Extract token from URL on mount
+  const [uploadProgress, setUploadProgress] = useState({});
+  
+  // Extract token from URL
   useEffect(() => {
-    const urlParams = new URLSearchParams(location.search);
-    const tokenParam = urlParams.get('token');
+    const searchParams = new URLSearchParams(location.search);
+    const urlToken = searchParams.get('token');
     
-    console.log("Token from URL:", tokenParam);
-    
-    if (!tokenParam) {
-      setError('No verification token found. Please use the link sent to your email.');
-    } else {
-      setToken(tokenParam);
-      fetchExistingSubmission(tokenParam);
+    if (!urlToken) {
+      setError("Invalid BGV link. No token provided.");
+      setLoading(false);
+      return;
     }
+    
+    setToken(urlToken);
+    // Store token in localStorage
+    localStorage.setItem("bgvToken", urlToken);
+    fetchCandidateDetails(urlToken);
   }, [location]);
   
-  // Fetch existing submission if any
-  const fetchExistingSubmission = async (tokenParam) => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${API_BASE}/public/bgv/status?token=${tokenParam}`);
-      console.log('Existing submission:', response.data);
-      
-      if (response.data?.data) {
-        const existing = response.data.data;
-        setSubmissionId(existing.id);
-        setExistingStatus(existing.status);
-        
-        // Pre-fill form if data exists
-        if (existing.formData) {
-          setFormData(prev => ({ ...prev, ...existing.formData }));
-        }
-        
-        // Set step based on completion status
-        if (existing.status === 'SUBMITTED') setStep(2);
-        if (existing.status === 'DOCUMENTS_UPLOADED') setStep(3);
-        if (existing.status === 'ONBOARDING_SUBMITTED') {
-          setSuccess('Your onboarding is already completed! Thank you.');
-        }
-      }
-    } catch (err) {
-      console.log('No existing submission or error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Handle BGV Form Submission
-  const handleSubmitBGV = async (e) => {
-    e.preventDefault();
-    
-    if (!token) {
-      setError('Invalid token. Please use the link from your email.');
-      return;
-    }
-    
-    // Validate Aadhar
-    const aadharRegex = /^\d{12}$/;
-    if (!aadharRegex.test(formData.aadharNumber.replace(/\s/g, ''))) {
-      setError('Please enter a valid 12-digit Aadhar number');
-      return;
-    }
-    
-    // Validate PAN
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-    if (!panRegex.test(formData.panNumber.toUpperCase())) {
-      setError('Please enter a valid PAN card number');
-      return;
-    }
-    
+  // Fetch candidate details using token
+  const fetchCandidateDetails = async (urlToken) => {
     setLoading(true);
     setError(null);
     
     try {
-      const payload = {
-        fullName: formData.fullName,
-        dob: formData.dob,
-        contactNumber: formData.contactNumber,
-        currentAddress: formData.currentAddress,
-        permanentAddress: formData.permanentAddress || formData.currentAddress,
-        aadharNumber: formData.aadharNumber,
-        panNumber: formData.panNumber.toUpperCase(),
-        educationDetails: formData.educationDetails.filter(edu => edu.qualification && edu.university),
-        employmentHistory: formData.employmentHistory.filter(emp => emp.companyName && emp.designation),
-        references: formData.references.filter(ref => ref.name && ref.contactNumber)
-      };
+      console.log("Fetching candidate details with token:", urlToken);
       
-      const response = await axios.post(
-        `${API_BASE}/public/bgv/submit-verification?token=${token}`,
-        payload
-      );
+      // Call GET /api/hr/bgv/get-details/token
+      const response = await axios.get(`${API_BASE}/hr/bgv/get-details/${urlToken}`);
       
-      console.log('BGV Submission Response:', response.data);
+      console.log("Candidate Details Response:", response.data);
       
-      setSubmissionId(response.data?.data?.id || response.data?.id);
-      setSuccess('✓ Verification details submitted successfully!');
-      setStep(2);
+      const data = response.data?.data || response.data;
       
-      setTimeout(() => setSuccess(null), 3000);
+      if (data) {
+        setCandidateData(data);
+        setBgvStatus(data.status || 'PENDING_BGV');
+        setBgvId(data.id || data.bgvId);
+        
+        // Pre-fill form with existing data if any
+        setFormData({
+          fullName: data.fullName || '',
+          dob: data.dob || '',
+          contactNumber: data.contactNumber || data.phoneNumber || '',
+          currentAddress: data.currentAddress || '',
+          aadharNumber: data.aadharNumber || '',
+          panNumber: data.panNumber || '',
+          educationDetails: data.educationDetails && data.educationDetails.length > 0 
+            ? data.educationDetails 
+            : [{ qualification: '', university: '', passingYear: '', percentage: '' }],
+          employmentHistory: data.employmentHistory && data.employmentHistory.length > 0 
+            ? data.employmentHistory 
+            : [{ companyName: '', designation: '', duration: '', responsibilities: '' }],
+          references: data.references && data.references.length > 0 
+            ? data.references 
+            : [{ name: '', contactNumber: '', relationship: '' }]
+        });
+      }
       
     } catch (err) {
-      console.error('BGV Submission Error:', err);
-      setError(err.response?.data?.message || 'Failed to submit verification details. Please try again.');
+      console.error('Fetch Candidate Details Error:', err);
+      if (err.response?.status === 404) {
+        setError("BGV record not found. The link may have expired or is invalid.");
+      } else if (err.response?.status === 401) {
+        setError("Unauthorized access. Please check your BGV link.");
+      } else {
+        setError(err.response?.data?.message || "Failed to load your details. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   };
   
-  // Handle Document Upload
+  // Handle form input changes
+  const handleInputChange = (e, section, index, field) => {
+    const { value } = e.target;
+    
+    if (section === 'education' && index !== undefined) {
+      const updated = [...formData.educationDetails];
+      updated[index][field] = value;
+      setFormData({ ...formData, educationDetails: updated });
+    } 
+    else if (section === 'employment' && index !== undefined) {
+      const updated = [...formData.employmentHistory];
+      updated[index][field] = value;
+      setFormData({ ...formData, employmentHistory: updated });
+    }
+    else if (section === 'reference' && index !== undefined) {
+      const updated = [...formData.references];
+      updated[index][field] = value;
+      setFormData({ ...formData, references: updated });
+    }
+    else {
+      setFormData({ ...formData, [field]: value });
+    }
+  };
+  
+  // Add new row to arrays
+  const addRow = (section) => {
+    if (section === 'education') {
+      setFormData({
+        ...formData,
+        educationDetails: [...formData.educationDetails, { qualification: '', university: '', passingYear: '', percentage: '' }]
+      });
+    } else if (section === 'employment') {
+      setFormData({
+        ...formData,
+        employmentHistory: [...formData.employmentHistory, { companyName: '', designation: '', duration: '', responsibilities: '' }]
+      });
+    } else if (section === 'reference') {
+      setFormData({
+        ...formData,
+        references: [...formData.references, { name: '', contactNumber: '', relationship: '' }]
+      });
+    }
+  };
+  
+  // Remove row
+  const removeRow = (section, index) => {
+    if (section === 'education' && formData.educationDetails.length > 1) {
+      const updated = formData.educationDetails.filter((_, i) => i !== index);
+      setFormData({ ...formData, educationDetails: updated });
+    } else if (section === 'employment' && formData.employmentHistory.length > 1) {
+      const updated = formData.employmentHistory.filter((_, i) => i !== index);
+      setFormData({ ...formData, employmentHistory: updated });
+    } else if (section === 'reference' && formData.references.length > 1) {
+      const updated = formData.references.filter((_, i) => i !== index);
+      setFormData({ ...formData, references: updated });
+    }
+  };
+  
+  // Handle file upload
   const handleFileUpload = async (documentType, file) => {
     if (!file) return;
-    
-    if (file.size > 5 * 1024 * 1024) {
-      setError(`${documentType} file size should be less than 5MB`);
+    if (!token) {
+      setError("Invalid token. Please refresh the page.");
       return;
     }
     
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      setError(`${documentType} must be a PDF, JPEG, or PNG file`);
-      return;
-    }
+    setUploading(true);
+    setUploadProgress(prev => ({ ...prev, [documentType]: 0 }));
     
-    setUploading(prev => ({ ...prev, [documentType]: true }));
-    setError(null);
-    
-    const formData = new FormData();
-    formData.append('file', file);
+    const formDataFile = new FormData();
+    formDataFile.append('file', file);
     
     try {
       const response = await axios.post(
         `${API_BASE}/public/bgv/upload-docs?token=${token}&documentType=${documentType}`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
+        formDataFile,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(prev => ({ ...prev, [documentType]: percentCompleted }));
+          }
+        }
       );
       
-      console.log(`Upload ${documentType}:`, response.data);
+      console.log(`Upload ${documentType} Response:`, response.data);
       
-      setUploadedDocs(prev => ({
-        ...prev,
-        [documentType]: { file, url: response.data?.data?.fileUrl, uploaded: true }
-      }));
-      
-      setSuccess(`✓ ${documentType.replace('_', ' ')} uploaded successfully!`);
+      setDocuments(prev => ({ ...prev, [documentType]: file.name }));
+      setSuccess(`${documentType} uploaded successfully!`);
       setTimeout(() => setSuccess(null), 3000);
       
     } catch (err) {
-      console.error('Upload Error:', err);
-      setError(`Failed to upload ${documentType}. Please try again.`);
+      console.error(`Upload ${documentType} Error:`, err);
+      setError(err.response?.data?.message || `Failed to upload ${documentType}. Please try again.`);
+      setTimeout(() => setError(null), 5000);
     } finally {
-      setUploading(prev => ({ ...prev, [documentType]: false }));
+      setUploading(false);
+      setUploadProgress(prev => ({ ...prev, [documentType]: 0 }));
     }
   };
   
-  // Handle Onboarding Submission
-  const handleSubmitOnboarding = async (e) => {
+  // Submit BGV verification details
+  const submitVerification = async (e) => {
     e.preventDefault();
     
-    if (onboardingData.accountNumber !== onboardingData.confirmAccountNumber) {
-      setError('Account numbers do not match');
+    // Validate required fields
+    if (!formData.fullName || !formData.dob || !formData.contactNumber || !formData.currentAddress) {
+      setError("Please fill in all required fields (Full Name, Date of Birth, Contact Number, Current Address)");
       return;
     }
     
-    if (!onboardingData.bankName || !onboardingData.accountNumber || !onboardingData.ifscCode) {
-      setError('Please fill all bank details');
+    if (!formData.aadharNumber && !formData.panNumber) {
+      setError("Please provide at least one ID proof (Aadhar Number or PAN Number)");
       return;
     }
     
-    if (!onboardingData.emergencyContactName || !onboardingData.emergencyContactNumber) {
-      setError('Please fill emergency contact details');
+    if (!token) {
+      setError("Invalid token. Please refresh the page.");
       return;
     }
     
-    setLoading(true);
+    setSubmitting(true);
     setError(null);
     
+    // Prepare submission data
+    const submissionData = {
+      fullName: formData.fullName,
+      dob: formData.dob,
+      contactNumber: formData.contactNumber,
+      currentAddress: formData.currentAddress,
+      aadharNumber: formData.aadharNumber,
+      panNumber: formData.panNumber,
+      educationDetails: formData.educationDetails.filter(edu => edu.qualification && edu.university),
+      employmentHistory: formData.employmentHistory.filter(emp => emp.companyName && emp.designation),
+      references: formData.references.filter(ref => ref.name && ref.contactNumber)
+    };
+    
     try {
-      const payload = {
-        bankName: onboardingData.bankName,
-        accountNumber: onboardingData.accountNumber,
-        ifscCode: onboardingData.ifscCode.toUpperCase(),
-        upiId: onboardingData.upiId || '',
-        emergencyContactName: onboardingData.emergencyContactName,
-        emergencyContactNumber: onboardingData.emergencyContactNumber,
-        emergencyRelationship: onboardingData.emergencyRelationship,
-        bloodGroup: onboardingData.bloodGroup,
-        dateOfJoining: onboardingData.dateOfJoining || new Date().toISOString().split('T')[0]
-      };
+      console.log("Submitting BGV Verification...");
+      
+      const response = await axios.post(
+        `${API_BASE}/public/bgv/submit-verification?token=${token}`,
+        submissionData,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      
+      console.log("Submit Verification Response:", response.data);
+      
+      setSuccess("Verification details submitted successfully! Please complete document upload.");
+      
+      // Refresh candidate data to show updated status
+      await fetchCandidateDetails(token);
+      
+    } catch (err) {
+      console.error('Submit Verification Error:', err);
+      setError(err.response?.data?.message || "Failed to submit verification details. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
+  // Submit onboarding details (emergency contact only)
+  const submitOnboarding = async (e) => {
+    e.preventDefault();
+    
+    const emergencyContactName = e.target.emergencyContactName?.value;
+    const emergencyContactNumber = e.target.emergencyContactNumber?.value;
+    
+    if (!emergencyContactName || !emergencyContactNumber) {
+      setError("Please fill in all emergency contact details");
+      return;
+    }
+    
+    if (!token) {
+      setError("Invalid token. Please refresh the page.");
+      return;
+    }
+    
+    setSubmitting(true);
+    
+    const onboardingData = {
+      emergencyContactName,
+      emergencyContactNumber
+    };
+    
+    try {
+      console.log("Submitting Onboarding Details...");
       
       const response = await axios.post(
         `${API_BASE}/public/bgv/submit-onboarding?token=${token}`,
-        payload
+        onboardingData,
+        { headers: { 'Content-Type': 'application/json' } }
       );
       
-      console.log('Onboarding Submission Response:', response.data);
+      console.log("Submit Onboarding Response:", response.data);
       
-      setSuccess('🎉 Onboarding completed successfully! You will receive your offer letter shortly.');
+      setSuccess("Onboarding details submitted successfully! You will be redirected shortly.");
       
+      // Redirect to success page after 2 seconds
       setTimeout(() => {
         navigate('/onboarding-success');
-      }, 3000);
+      }, 2000);
       
     } catch (err) {
-      console.error('Onboarding Error:', err);
-      setError(err.response?.data?.message || 'Failed to submit onboarding details');
-    } finally {
-      setLoading(false);
+      console.error('Submit Onboarding Error:', err);
+      setError(err.response?.data?.message || "Failed to submit onboarding details. Please try again.");
+      setSubmitting(false);
     }
   };
   
-  // Helper functions for dynamic fields
-  const addEducation = () => {
-    setFormData(prev => ({
-      ...prev,
-      educationDetails: [...prev.educationDetails, { qualification: '', university: '', passingYear: '', percentage: '' }]
-    }));
+  // Check if verification is already submitted
+  const isVerificationSubmitted = () => {
+    return bgvStatus && (bgvStatus === 'SUBMITTED' || bgvStatus === 'UNDER_REVIEW' || bgvStatus === 'APPROVED');
   };
   
-  const removeEducation = (index) => {
-    if (formData.educationDetails.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        educationDetails: prev.educationDetails.filter((_, i) => i !== index)
-      }));
-    }
+  // Check if onboarding is completed
+  const isOnboardingCompleted = () => {
+    return bgvStatus === 'APPROVED';
   };
   
-  const updateEducation = (index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      educationDetails: prev.educationDetails.map((edu, i) => 
-        i === index ? { ...edu, [field]: value } : edu
-      )
-    }));
-  };
-  
-  const addEmployment = () => {
-    setFormData(prev => ({
-      ...prev,
-      employmentHistory: [...prev.employmentHistory, { companyName: '', designation: '', duration: '', experienceLetter: false }]
-    }));
-  };
-  
-  const removeEmployment = (index) => {
-    if (formData.employmentHistory.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        employmentHistory: prev.employmentHistory.filter((_, i) => i !== index)
-      }));
-    }
-  };
-  
-  const updateEmployment = (index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      employmentHistory: prev.employmentHistory.map((emp, i) => 
-        i === index ? { ...emp, [field]: value } : emp
-      )
-    }));
-  };
-  
-  const addReference = () => {
-    setFormData(prev => ({
-      ...prev,
-      references: [...prev.references, { name: '', contactNumber: '', relationship: '', company: '' }]
-    }));
-  };
-  
-  const removeReference = (index) => {
-    if (formData.references.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        references: prev.references.filter((_, i) => i !== index)
-      }));
-    }
-  };
-  
-  const updateReference = (index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      references: prev.references.map((ref, i) => 
-        i === index ? { ...ref, [field]: value } : ref
-      )
-    }));
-  };
-  
-  const allDocumentsUploaded = () => {
-    return uploadedDocs.AADHAR_CARD?.uploaded && 
-           uploadedDocs.PAN_CARD?.uploaded && 
-           uploadedDocs.DEGREE_CERTIFICATE?.uploaded;
-  };
-  
-  // Step indicator
-  const StepIndicator = () => {
-    const steps = [
-      { number: 1, label: 'Personal & Professional', icon: User },
-      { number: 2, label: 'Document Upload', icon: Upload },
-      { number: 3, label: 'Bank & Emergency', icon: Banknote }
-    ];
-    
+  // Loading state
+  if (loading) {
     return (
-      <div className="mb-12">
-        <div className="flex items-center justify-between max-w-3xl mx-auto">
-          {steps.map((s, idx) => (
-            <React.Fragment key={s.number}>
-              <div className="flex flex-col items-center">
-                <div className={`
-                  w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all
-                  ${step >= s.number ? 'bg-black border-black text-white' : 'border-gray-200 text-gray-400'}
-                `}>
-                  {step > s.number ? <CheckCircle size={20} /> : <s.icon size={20} />}
-                </div>
-                <span className="text-[10px] mt-2 text-gray-500 uppercase tracking-widest hidden md:block">
-                  {s.label}
-                </span>
-              </div>
-              {idx < steps.length - 1 && (
-                <div className={`flex-1 h-px mx-4 ${step > s.number ? 'bg-black' : 'bg-gray-200'}`} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-    );
-  };
-  
-  if (loading && !formData.fullName) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="animate-spin mx-auto mb-4" size={40} />
-          <p className="text-sm text-gray-500">Loading your onboarding portal...</p>
+          <p className="text-gray-500 text-sm">Loading your details...</p>
         </div>
       </div>
     );
   }
   
-  if (!token && !loading) {
+  // Error state
+  if (error && !candidateData) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6">
-        <div className="max-w-md w-full text-center">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-50 flex items-center justify-center">
-            <AlertCircle size={40} className="text-red-500" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+            <AlertCircle size={32} className="text-red-500" />
           </div>
-          <h2 className="text-xl font-light mb-2">Invalid Access</h2>
-          <p className="text-gray-400 text-sm mb-6">
-            No verification token found. Please use the link sent to your email address.
-          </p>
+          <h2 className="text-xl font-light mb-2">Invalid BGV Link</h2>
+          <p className="text-gray-500 text-sm mb-6">{error}</p>
           <button
             onClick={() => window.location.href = '/'}
-            className="px-6 py-3 bg-black text-white text-[11px] font-bold uppercase tracking-widest rounded"
+            className="px-6 py-3 bg-black text-white text-xs font-bold uppercase tracking-widest rounded"
           >
             Go to Homepage
           </button>
@@ -425,768 +377,423 @@ const BGVPortal = () => {
     );
   }
   
+  // Main render - Two steps: Verification Form then Onboarding Form
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-6 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-light tracking-tight">BGV & Onboarding Portal</h1>
-              <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest">
-                Complete your verification to join the team
-              </p>
-            </div>
-            {token && (
-              <div className="text-[10px] text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
-                Token: {token.substring(0, 12)}...
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-light mb-2">Background Verification</h1>
+          <p className="text-gray-500 text-sm">Please complete your verification details</p>
+        </div>
+        
+        {/* Progress Indicator */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between max-w-md mx-auto">
+            <div className={`text-center ${!isVerificationSubmitted() ? 'text-black' : 'text-green-600'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 ${
+                !isVerificationSubmitted() ? 'bg-black text-white' : 'bg-green-100'
+              }`}>
+                {isVerificationSubmitted() ? <CheckCircle size={16} /> : <Shield size={16} />}
               </div>
-            )}
+              <span className="text-[10px] uppercase tracking-widest">Verification</span>
+            </div>
+            <div className="flex-1 h-px bg-gray-200 mx-4"></div>
+            <div className={`text-center ${isVerificationSubmitted() && !isOnboardingCompleted() ? 'text-black' : isOnboardingCompleted() ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 ${
+                isOnboardingCompleted() ? 'bg-green-100' : isVerificationSubmitted() ? 'bg-black text-white' : 'bg-gray-100'
+              }`}>
+                {isOnboardingCompleted() ? <CheckCircle size={16} /> : <Users size={16} />}
+              </div>
+              <span className="text-[10px] uppercase tracking-widest">Emergency Contact</span>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <StepIndicator />
         
-        <AnimatePresence>
-          {error && (
-            <motion.div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
-              <AlertCircle size={16} className="text-red-500" />
-              <p className="text-xs text-red-600 flex-1">{error}</p>
-              <button onClick={() => setError(null)}>
-                <X size={14} className="text-red-400" />
-              </button>
-            </motion.div>
-          )}
-          
-          {success && (
-            <motion.div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-              <CheckCircle size={16} className="text-green-500" />
-              <p className="text-xs text-green-600 flex-1">{success}</p>
-              <button onClick={() => setSuccess(null)}>
-                <X size={14} className="text-green-400" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Success/Error Messages */}
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+            <CheckCircle size={20} className="text-green-500" />
+            <p className="text-sm text-green-700 flex-1">{success}</p>
+          </div>
+        )}
         
-        {/* STEP 1: Personal Details */}
-        {step === 1 && (
-          <motion.form
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleSubmitBGV}
-            className="space-y-6"
-          >
-            {/* Personal Information Card */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                <User size={16} className="text-gray-600" />
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle size={20} className="text-red-500" />
+            <p className="text-sm text-red-700 flex-1">{error}</p>
+          </div>
+        )}
+        
+        {/* Step 1: Verification Form */}
+        {!isVerificationSubmitted() && (
+          <form onSubmit={submitVerification} className="space-y-6">
+            {/* Personal Information */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <User size={20} />
                 Personal Information
               </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Full Name <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Full Name *</label>
                   <input
                     type="text"
-                    required
                     value={formData.fullName}
-                    onChange={(e) => setFormData({...formData, fullName: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="As per Aadhar Card"
+                    onChange={(e) => handleInputChange(e, null, null, 'fullName')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                    required
                   />
                 </div>
-                
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Date of Birth <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Date of Birth *</label>
                   <input
                     type="date"
-                    required
-                    max={new Date().toISOString().split('T')[0]}
                     value={formData.dob}
-                    onChange={(e) => setFormData({...formData, dob: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
+                    onChange={(e) => handleInputChange(e, null, null, 'dob')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                    required
                   />
                 </div>
-                
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Contact Number <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Contact Number *</label>
                   <input
                     type="tel"
-                    required
-                    pattern="[0-9]{10}"
                     value={formData.contactNumber}
-                    onChange={(e) => setFormData({...formData, contactNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="10-digit mobile number"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Aadhar Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
+                    onChange={(e) => handleInputChange(e, null, null, 'contactNumber')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black"
                     required
-                    pattern="[0-9]{12}"
-                    maxLength="12"
-                    value={formData.aadharNumber}
-                    onChange={(e) => setFormData({...formData, aadharNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="12-digit Aadhar number"
                   />
                 </div>
-                
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    PAN Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength="10"
-                    value={formData.panNumber}
-                    onChange={(e) => setFormData({...formData, panNumber: e.target.value.toUpperCase()})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm uppercase"
-                    placeholder="ABCDE1234F"
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-5 space-y-4">
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Current Address <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Current Address *</label>
                   <textarea
-                    required
-                    rows="2"
                     value={formData.currentAddress}
-                    onChange={(e) => setFormData({...formData, currentAddress: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm resize-none"
-                    placeholder="Flat/House No., Street, City, State, PIN Code"
+                    onChange={(e) => handleInputChange(e, null, null, 'currentAddress')}
+                    rows="2"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                    required
                   />
                 </div>
-                
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Permanent Address
-                  </label>
-                  <textarea
-                    rows="2"
-                    value={formData.permanentAddress}
-                    onChange={(e) => setFormData({...formData, permanentAddress: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm resize-none"
-                    placeholder="Leave blank if same as current address"
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Aadhar Number</label>
+                  <input
+                    type="text"
+                    value={formData.aadharNumber}
+                    onChange={(e) => handleInputChange(e, null, null, 'aadharNumber')}
+                    placeholder="1234-5678-9012"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">PAN Number</label>
+                  <input
+                    type="text"
+                    value={formData.panNumber}
+                    onChange={(e) => handleInputChange(e, null, null, 'panNumber')}
+                    placeholder="ABCDE1234F"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black"
                   />
                 </div>
               </div>
             </div>
             
-            {/* Education Details Card */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                  <GraduationCap size={16} className="text-gray-600" />
+            {/* Education Details */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <GraduationCap size={20} />
                   Education Details
                 </h2>
                 <button
                   type="button"
-                  onClick={addEducation}
-                  className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 rounded-lg hover:bg-black hover:text-white transition-all"
+                  onClick={() => addRow('education')}
+                  className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700"
                 >
-                  + Add Education
+                  <Plus size={14} /> Add Education
                 </button>
               </div>
               
-              {formData.educationDetails.map((edu, index) => (
-                <div key={index} className="mb-5 pb-5 border-b border-gray-100 last:border-0">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs text-gray-500 font-medium">Education #{index + 1}</span>
+              {formData.educationDetails.map((edu, idx) => (
+                <div key={idx} className="border-b border-gray-100 pb-4 mb-4 last:border-0">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-sm font-medium">Education #{idx + 1}</span>
                     {formData.educationDetails.length > 1 && (
-                      <button type="button" onClick={() => removeEducation(index)} className="text-red-500 text-[10px] hover:text-red-600">
-                        Remove
+                      <button
+                        type="button"
+                        onClick={() => removeRow('education', idx)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input
                       type="text"
-                      placeholder="Qualification (e.g., B.Tech, MBA)"
+                      placeholder="Qualification (e.g., 10th, B.Tech)"
                       value={edu.qualification}
-                      onChange={(e) => updateEducation(index, 'qualification', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'education', idx, 'qualification')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
                     <input
                       type="text"
                       placeholder="University/Board"
                       value={edu.university}
-                      onChange={(e) => updateEducation(index, 'university', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'education', idx, 'university')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
                     <input
                       type="text"
                       placeholder="Passing Year"
                       value={edu.passingYear}
-                      onChange={(e) => updateEducation(index, 'passingYear', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'education', idx, 'passingYear')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
                     <input
                       type="text"
                       placeholder="Percentage/CGPA"
                       value={edu.percentage}
-                      onChange={(e) => updateEducation(index, 'percentage', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'education', idx, 'percentage')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
                   </div>
                 </div>
               ))}
             </div>
             
-            {/* Employment History Card */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                  <Briefcase size={16} className="text-gray-600" />
+            {/* Employment History */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Briefcase size={20} />
                   Employment History
                 </h2>
                 <button
                   type="button"
-                  onClick={addEmployment}
-                  className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 rounded-lg hover:bg-black hover:text-white transition-all"
+                  onClick={() => addRow('employment')}
+                  className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700"
                 >
-                  + Add Experience
+                  <Plus size={14} /> Add Experience
                 </button>
               </div>
               
-              {formData.employmentHistory.map((emp, index) => (
-                <div key={index} className="mb-5 pb-5 border-b border-gray-100 last:border-0">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs text-gray-500 font-medium">Experience #{index + 1}</span>
+              {formData.employmentHistory.map((emp, idx) => (
+                <div key={idx} className="border-b border-gray-100 pb-4 mb-4 last:border-0">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-sm font-medium">Experience #{idx + 1}</span>
                     {formData.employmentHistory.length > 1 && (
-                      <button type="button" onClick={() => removeEmployment(index)} className="text-red-500 text-[10px] hover:text-red-600">
-                        Remove
+                      <button
+                        type="button"
+                        onClick={() => removeRow('employment', idx)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input
                       type="text"
                       placeholder="Company Name"
                       value={emp.companyName}
-                      onChange={(e) => updateEmployment(index, 'companyName', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'employment', idx, 'companyName')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
                     <input
                       type="text"
                       placeholder="Designation"
                       value={emp.designation}
-                      onChange={(e) => updateEmployment(index, 'designation', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'employment', idx, 'designation')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
                     <input
                       type="text"
                       placeholder="Duration (e.g., 2 Years)"
                       value={emp.duration}
-                      onChange={(e) => updateEmployment(index, 'duration', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'employment', idx, 'duration')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={emp.experienceLetter}
-                        onChange={(e) => updateEmployment(index, 'experienceLetter', e.target.checked)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-[10px] text-gray-600">Experience Letter Available</span>
-                    </label>
+                    <textarea
+                      placeholder="Key Responsibilities"
+                      value={emp.responsibilities}
+                      onChange={(e) => handleInputChange(e, 'employment', idx, 'responsibilities')}
+                      rows="2"
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
+                    />
                   </div>
                 </div>
               ))}
             </div>
             
-            {/* References Card */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                  <Users size={16} className="text-gray-600" />
+            {/* References */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Users size={20} />
                   Professional References
                 </h2>
                 <button
                   type="button"
-                  onClick={addReference}
-                  className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 rounded-lg hover:bg-black hover:text-white transition-all"
+                  onClick={() => addRow('reference')}
+                  className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700"
                 >
-                  + Add Reference
+                  <Plus size={14} /> Add Reference
                 </button>
               </div>
               
-              {formData.references.map((ref, index) => (
-                <div key={index} className="mb-5 pb-5 border-b border-gray-100 last:border-0">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs text-gray-500 font-medium">Reference #{index + 1}</span>
+              {formData.references.map((ref, idx) => (
+                <div key={idx} className="border-b border-gray-100 pb-4 mb-4 last:border-0">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-sm font-medium">Reference #{idx + 1}</span>
                     {formData.references.length > 1 && (
-                      <button type="button" onClick={() => removeReference(index)} className="text-red-500 text-[10px] hover:text-red-600">
-                        Remove
+                      <button
+                        type="button"
+                        onClick={() => removeRow('reference', idx)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input
                       type="text"
                       placeholder="Full Name"
                       value={ref.name}
-                      onChange={(e) => updateReference(index, 'name', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'reference', idx, 'name')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
                     <input
                       type="tel"
                       placeholder="Contact Number"
                       value={ref.contactNumber}
-                      onChange={(e) => updateReference(index, 'contactNumber', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'reference', idx, 'contactNumber')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
                     <input
                       type="text"
-                      placeholder="Relationship (e.g., Manager, Colleague)"
+                      placeholder="Relationship"
                       value={ref.relationship}
-                      onChange={(e) => updateReference(index, 'relationship', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Company Name"
-                      value={ref.company}
-                      onChange={(e) => updateReference(index, 'company', e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
+                      onChange={(e) => handleInputChange(e, 'reference', idx, 'relationship')}
+                      className="px-3 py-2 border border-gray-300 rounded text-sm"
                     />
                   </div>
                 </div>
               ))}
             </div>
             
+            {/* Document Uploads */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Upload size={20} />
+                Document Uploads
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.keys(documents).map((docType) => (
+                  <div key={docType} className="border border-gray-200 rounded p-3">
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      {docType.replace('_', ' ')}
+                    </label>
+                    <input
+                      type="file"
+                      onChange={(e) => handleFileUpload(docType, e.target.files[0])}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="w-full text-sm"
+                      disabled={uploading}
+                    />
+                    {uploadProgress[docType] > 0 && (
+                      <div className="mt-2">
+                        <div className="bg-gray-200 rounded-full h-1">
+                          <div 
+                            className="bg-blue-600 h-1 rounded-full transition-all"
+                            style={{ width: `${uploadProgress[docType]}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-1">{uploadProgress[docType]}%</p>
+                      </div>
+                    )}
+                    {documents[docType] && (
+                      <p className="text-xs text-green-600 mt-1">✓ {documents[docType]}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-black text-white py-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={submitting}
+              className="w-full py-3 bg-black text-white text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 className="animate-spin" size={16} /> : <ChevronRight size={16} />}
-              {loading ? 'Submitting...' : 'Continue to Document Upload'}
+              {submitting ? <Loader2 className="animate-spin" size={18} /> : <Shield size={18} />}
+              {submitting ? 'Submitting...' : 'Submit Verification Details'}
             </button>
-          </motion.form>
+          </form>
         )}
         
-        {/* STEP 2: Document Upload */}
-        {step === 2 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Upload size={16} className="text-gray-600" />
-                Upload Required Documents
-              </h2>
-              
-              <p className="text-xs text-gray-500 mb-6">
-                Please upload clear, legible copies of the following documents. 
-                Accepted formats: PDF, JPEG, PNG (Max 5MB each)
-              </p>
-              
-              <div className="space-y-5">
-                {/* Aadhar Card */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-sm font-medium">Aadhar Card</h3>
-                      <p className="text-[10px] text-gray-400">Front & Back (or combined PDF)</p>
-                    </div>
-                    {uploadedDocs.AADHAR_CARD?.uploaded && <CheckCircle size={20} className="text-green-500" />}
-                  </div>
-                  
-                  {!uploadedDocs.AADHAR_CARD?.uploaded ? (
-                    <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-black transition-colors cursor-pointer bg-gray-50">
-                      <div className="text-center">
-                        <Upload size={24} className="mx-auto text-gray-400 mb-2" />
-                        <span className="text-[10px] text-gray-500">Click to upload Aadhar Card</span>
-                        <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload('AADHAR_CARD', e.target.files[0])}
-                        />
-                      </div>
-                    </label>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <FileText size={16} className="text-green-600" />
-                        <span className="text-xs">Aadhar Card uploaded successfully</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setUploadedDocs(prev => ({ ...prev, AADHAR_CARD: null }))}
-                        className="text-red-500 text-[10px] hover:text-red-600"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                {/* PAN Card */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-sm font-medium">PAN Card</h3>
-                      <p className="text-[10px] text-gray-400">Clear copy of PAN card</p>
-                    </div>
-                    {uploadedDocs.PAN_CARD?.uploaded && <CheckCircle size={20} className="text-green-500" />}
-                  </div>
-                  
-                  {!uploadedDocs.PAN_CARD?.uploaded ? (
-                    <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-black transition-colors cursor-pointer bg-gray-50">
-                      <div className="text-center">
-                        <Upload size={24} className="mx-auto text-gray-400 mb-2" />
-                        <span className="text-[10px] text-gray-500">Click to upload PAN Card</span>
-                        <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload('PAN_CARD', e.target.files[0])}
-                        />
-                      </div>
-                    </label>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <FileText size={16} className="text-green-600" />
-                        <span className="text-xs">PAN Card uploaded successfully</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setUploadedDocs(prev => ({ ...prev, PAN_CARD: null }))}
-                        className="text-red-500 text-[10px] hover:text-red-600"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Degree Certificate */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-sm font-medium">Degree Certificate</h3>
-                      <p className="text-[10px] text-gray-400">Highest qualification degree/provisional certificate</p>
-                    </div>
-                    {uploadedDocs.DEGREE_CERTIFICATE?.uploaded && <CheckCircle size={20} className="text-green-500" />}
-                  </div>
-                  
-                  {!uploadedDocs.DEGREE_CERTIFICATE?.uploaded ? (
-                    <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-black transition-colors cursor-pointer bg-gray-50">
-                      <div className="text-center">
-                        <Upload size={24} className="mx-auto text-gray-400 mb-2" />
-                        <span className="text-[10px] text-gray-500">Click to upload Degree Certificate</span>
-                        <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload('DEGREE_CERTIFICATE', e.target.files[0])}
-                        />
-                      </div>
-                    </label>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <FileText size={16} className="text-green-600" />
-                        <span className="text-xs">Degree Certificate uploaded successfully</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setUploadedDocs(prev => ({ ...prev, DEGREE_CERTIFICATE: null }))}
-                        className="text-red-500 text-[10px] hover:text-red-600"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Photograph (Optional) */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-sm font-medium">Recent Photograph</h3>
-                      <p className="text-[10px] text-gray-400">Passport size photo (Optional)</p>
-                    </div>
-                    {uploadedDocs.PHOTOGRAPH?.uploaded && <CheckCircle size={20} className="text-green-500" />}
-                  </div>
-                  
-                  {!uploadedDocs.PHOTOGRAPH?.uploaded ? (
-                    <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-black transition-colors cursor-pointer bg-gray-50">
-                      <div className="text-center">
-                        <Upload size={24} className="mx-auto text-gray-400 mb-2" />
-                        <span className="text-[10px] text-gray-500">Click to upload Photograph</span>
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload('PHOTOGRAPH', e.target.files[0])}
-                        />
-                      </div>
-                    </label>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <FileText size={16} className="text-green-600" />
-                        <span className="text-xs">Photograph uploaded successfully</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setUploadedDocs(prev => ({ ...prev, PHOTOGRAPH: null }))}
-                        className="text-red-500 text-[10px] hover:text-red-600"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex gap-4 mt-8">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="flex-1 border border-gray-300 text-gray-600 py-3 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-all"
-                >
-                  <ChevronLeft size={14} className="inline mr-1" />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  disabled={!allDocumentsUploaded()}
-                  className="flex-1 bg-black text-white py-3 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  Continue to Bank Details
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-              
-              {!allDocumentsUploaded() && (
-                <p className="text-[10px] text-red-500 text-center mt-4">
-                  Please upload all required documents (Aadhar, PAN, Degree Certificate) to continue
-                </p>
-              )}
-            </div>
-          </motion.div>
-        )}
-        
-        {/* STEP 3: Bank & Emergency Details */}
-        {step === 3 && (
-          <motion.form
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleSubmitOnboarding}
-            className="space-y-6"
-          >
-            {/* Bank Details Card */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Banknote size={16} className="text-gray-600" />
-                Bank Account Details
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Bank Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={onboardingData.bankName}
-                    onChange={(e) => setOnboardingData({...onboardingData, bankName: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="e.g., State Bank of India"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Account Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={onboardingData.accountNumber}
-                    onChange={(e) => setOnboardingData({...onboardingData, accountNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="Your bank account number"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Confirm Account Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={onboardingData.confirmAccountNumber}
-                    onChange={(e) => setOnboardingData({...onboardingData, confirmAccountNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="Re-enter account number"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    IFSC Code <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={onboardingData.ifscCode}
-                    onChange={(e) => setOnboardingData({...onboardingData, ifscCode: e.target.value.toUpperCase()})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm uppercase"
-                    placeholder="e.g., SBIN0001234"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    UPI ID (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={onboardingData.upiId}
-                    onChange={(e) => setOnboardingData({...onboardingData, upiId: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="e.g., name@okhdfcbank"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {/* Emergency Contact Card */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Heart size={16} className="text-gray-600" />
+        {/* Step 2: Onboarding Form (Emergency Contact Only) */}
+        {isVerificationSubmitted() && !isOnboardingCompleted() && (
+          <form onSubmit={submitOnboarding} className="space-y-6">
+            {/* Emergency Contact */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Users size={20} />
                 Emergency Contact Details
               </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Contact Person Name <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Contact Person Name *</label>
                   <input
                     type="text"
+                    name="emergencyContactName"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black"
                     required
-                    value={onboardingData.emergencyContactName}
-                    onChange={(e) => setOnboardingData({...onboardingData, emergencyContactName: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="Full name of emergency contact"
                   />
                 </div>
-                
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Contact Number <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Contact Number *</label>
                   <input
                     type="tel"
+                    name="emergencyContactNumber"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black"
                     required
-                    pattern="[0-9]{10}"
-                    value={onboardingData.emergencyContactNumber}
-                    onChange={(e) => setOnboardingData({...onboardingData, emergencyContactNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="10-digit mobile number"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Relationship <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={onboardingData.emergencyRelationship}
-                    onChange={(e) => setOnboardingData({...onboardingData, emergencyRelationship: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
-                    placeholder="e.g., Father, Mother, Spouse"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Blood Group
-                  </label>
-                  <select
-                    value={onboardingData.bloodGroup}
-                    onChange={(e) => setOnboardingData({...onboardingData, bloodGroup: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none text-sm"
-                  >
-                    <option value="">Select Blood Group</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                    Expected Date of Joining
-                  </label>
-                  <input
-                    type="date"
-                    min={new Date().toISOString().split('T')[0]}
-                    value={onboardingData.dateOfJoining}
-                    onChange={(e) => setOnboardingData({...onboardingData, dateOfJoining: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors text-sm"
                   />
                 </div>
               </div>
             </div>
             
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="flex-1 border border-gray-300 text-gray-600 py-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-all"
-              >
-                <ChevronLeft size={14} className="inline mr-1" />
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 bg-black text-white py-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                {loading ? 'Submitting...' : 'Submit Onboarding'}
-              </button>
+            {/* Submit Onboarding Button */}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-3 bg-black text-white text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {submitting ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+              {submitting ? 'Submitting...' : 'Complete Onboarding'}
+            </button>
+          </form>
+        )}
+        
+        {/* Completion State */}
+        {isOnboardingCompleted() && (
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-50 flex items-center justify-center">
+              <CheckCircle size={40} className="text-green-500" />
             </div>
-          </motion.form>
+            <h2 className="text-2xl font-light mb-2">Onboarding Completed!</h2>
+            <p className="text-gray-500 text-sm mb-6">
+              Thank you for completing your onboarding. Your offer letter and further instructions 
+              will be sent to your email shortly.
+            </p>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="px-6 py-3 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-lg"
+            >
+              Go to Homepage
+            </button>
+          </div>
         )}
       </div>
     </div>

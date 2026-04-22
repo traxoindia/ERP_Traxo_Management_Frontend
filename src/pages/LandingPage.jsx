@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, Landmark, ShoppingCart, Code, Factory, Truck, MapPin,
   HelpCircle, Lock, UserPlus, ChevronRight, Phone, Info,
-  Settings, Database, ShieldAlert, FileText, ClipboardList, Monitor
+  Settings, Database, ShieldAlert, FileText, ClipboardList, Monitor,
+  ChevronDown, UserCircle, Briefcase
 } from 'lucide-react';
 import MainNavbar from './Career/MainNavbar';
 
@@ -13,7 +14,15 @@ const menuData = {
       { name: "Admin Portal", icon: <Users size={18} />, path: "/admin/login" },
       { name: "HR Management", icon: <Users size={18} />, path: "/login" },
       { name: "Finance", icon: <Landmark size={18} />, path: "/departments/finance" },
-      { name: "Procurement", icon: <ShoppingCart size={18} />, path: "/departments/procurement" },
+      { 
+        name: "Procurement", 
+        icon: <ShoppingCart size={18} />, 
+        isDropdown: true, // Mark as dropdown
+        subItems: [
+          { name: "Vendor Portal", icon: <UserCircle size={16} />, path: "/vendorlogin" },
+          { name: "Procurement Portal", icon: <Briefcase size={16} />, path: "/departments/procurement/login" },
+        ]
+      },
       { name: "Software", icon: <Code size={18} />, path: "/departments/software" },
       { name: "Production", icon: <Factory size={18} />, path: "/departments/production" },
       { name: "Employee Self Service", icon: <Lock size={18} />, path: "/employee-login" },
@@ -43,16 +52,35 @@ const LandingPage = () => {
         {/* 1. PRIMARY NAV (Corporate Dark Blue) */}
         <nav className="bg-[#003366] text-white sticky top-0 z-40 shadow-lg">
           <div className="max-w-screen-2xl mx-auto flex items-center">
-            <div className="flex overflow-x-auto no-scrollbar scroll-smooth">
+            <div className="flex overflow-x-visible no-scrollbar">
               {menuData.Traxo.items.map((item, idx) => (
-                <button 
-                  key={idx} 
-                  onClick={() => handleNavigation(item)}
-                  className="px-4 py-3.5 text-[11px] md:text-[12px] font-bold border-r border-[#ffffff22] hover:bg-[#004a91] transition-colors flex items-center gap-2 whitespace-nowrap group"
-                >
-                  <span className="text-cyan-400 group-hover:scale-110 transition-transform">{item.icon}</span>
-                  {item.name}
-                </button>
+                <div key={idx} className="relative group">
+                  {/* Main Link / Dropdown Trigger */}
+                  <button 
+                    onClick={() => !item.isDropdown && handleNavigation(item)}
+                    className="px-4 py-3.5 text-[11px] md:text-[12px] font-bold border-r border-[#ffffff22] hover:bg-[#004a91] transition-colors flex items-center gap-2 whitespace-nowrap group h-full"
+                  >
+                    <span className="text-cyan-400 group-hover:scale-110 transition-transform">{item.icon}</span>
+                    {item.name}
+                    {item.isDropdown && <ChevronDown size={14} className="ml-1 opacity-60 group-hover:rotate-180 transition-transform" />}
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {item.isDropdown && (
+                    <div className="absolute left-0 top-full w-56 bg-white shadow-2xl rounded-b-md py-2 border-t-2 border-cyan-500 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 z-50">
+                      {item.subItems.map((sub, subIdx) => (
+                        <button
+                          key={subIdx}
+                          onClick={() => handleNavigation(sub)}
+                          className="w-full text-left px-4 py-3 text-[12px] text-slate-700 font-bold hover:bg-slate-50 hover:text-[#003366] flex items-center gap-3 transition-colors border-b border-gray-50 last:border-0"
+                        >
+                          <span className="text-blue-500">{sub.icon}</span>
+                          {sub.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
             <div className="ml-auto bg-[#2b8a3e] px-4 md:px-6 py-3.5 text-[12px] font-bold cursor-pointer hover:bg-[#236d31] hidden sm:block">

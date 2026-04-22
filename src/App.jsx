@@ -41,6 +41,16 @@ import OnboardingSuccess from "./pages/Career/OnboardingSuccess";
 import Onboarding from "./pages/Career/Onboarding";
 import BGVPortal from "./pages/Career/BGVPportal";
 
+import CandidateDetails from "./pages/Career/CandidateDetails";
+import ProcurementDashboard from "./Procurement/ProcurementDashboard";
+import ProcurementLogin from "./Procurement/ProcurementLogin";
+import Vendorpage from "./Procurement/Vendorpage";
+import AdminVendorApprove from "../Admin/AdminVendorApprove";
+import VendorLogin from "./Procurement/VendorLogin";
+import VendorDashboard from "./Procurement/VendorDashboard";
+import ProcurementRequirementShowVendor from "./Procurement/ProcurementRequirementShowVendor";
+import BulkApproveBGV from "./pages/Career/TestPage/BulkApproveBGV";
+
 // Payroll
 
 function App() {
@@ -70,6 +80,8 @@ function App() {
         <Route path="/reports/employee-summary" element={<EmployeeSummary />} />
 
         <Route path="/jobs/bgv-verification" element={<BGVVerification />} />
+
+        <Route path="/jobs/bgv" element={<CandidateDetails />} />
         {/* Add success page */}
         <Route path="/onboarding-success" element={<OnboardingSuccess />} />
 
@@ -79,6 +91,23 @@ function App() {
         <Route path="/admin/register" element={<AdminRegister />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
+        <Route path="/admin/vendor-approve" element={<AdminVendorApprove />} />
+
+        {/* Procurement Routes */}
+        <Route path="/procurement" element={<ProcurementDashboard />} />
+        <Route path="/departments/procurement/login" element={<ProcurementLogin />} />
+        <Route path="/vendors" element={<Vendorpage />} />
+        <Route path="/vendorlogin" element={<VendorLogin />} />
+        <Route path="/vendor-dashboard" element={<VendorDashboard />} />
+        <Route path="/Procurement-requirements" element={<ProcurementRequirementShowVendor />} />
+
+
+        {/* Test */}
+
+        <Route path="/test" element={<BulkApproveBGV />} />
+
+
+
         <Route
           path="/employee-checkin"
           element={

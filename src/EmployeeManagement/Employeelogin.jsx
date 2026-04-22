@@ -20,36 +20,33 @@ function Employeelogin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      
 
       const data = await response.json();
       console.log("Login Response:", data);
 
-      if (response.ok && data.accessToken) {
-        // --- SAVE ALL DATA TO LOCAL STORAGE ---
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
-        localStorage.setItem('employeeId', data.employeeId);
-        localStorage.setItem('name', data.name);
+      if (response.ok && data.status === "SUCCESS") {
+        // --- DATA EXTRACTION ---
+        const { accessToken, refreshToken, profile } = data;
+
+        // --- SAVE TO LOCAL STORAGE ---
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
         
-        // Roles are usually an array; we store them as a stringified JSON
-        localStorage.setItem('roles', JSON.stringify(data.roles));
+        // Save profile details
+        localStorage.setItem('employeeId', profile.employeeId);
+        localStorage.setItem('name', profile.fullName);
+        localStorage.setItem('email', profile.emailAddress);
+        localStorage.setItem('designation', profile.designation);
+        localStorage.setItem('profilePic', profile.profilePicture);
 
-        // --- ROLE-BASED REDIRECTION ---
-        const isEmployee = data.roles && data.roles.includes("ROLE_EMPLOYEE");
-
-        if (isEmployee) {
-          navigate('/employee-dashboard');
-        } else {
-          // If they aren't an employee (e.g., Admin), send them elsewhere or home
-          navigate('/');
-        }
+        // Redirect to dashboard
+        navigate('/employee-dashboard');
       } else {
-        setError(data.message || 'Invalid credentials. Please check your email and password.');
+        setError(data.message || 'Invalid credentials. Please try again.');
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError('Connection error. Please check your internet and try again.');
+      setError('Connection error. Please check your internet.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +62,7 @@ function Employeelogin() {
 
         <form onSubmit={handleLogin} className="space-y-6">
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center border border-red-100 animate-pulse">
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center border border-red-100">
               {error}
             </div>
           )}
@@ -77,7 +74,7 @@ function Employeelogin() {
               <input
                 type="email"
                 required
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 placeholder="employee@traxoindia.in"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -86,13 +83,13 @@ function Employeelogin() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700 block">Password (Phone Number)</label>
+            <label className="text-sm font-semibold text-gray-700 block">Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="password"
                 required
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -107,25 +104,9 @@ function Employeelogin() {
               loading ? 'opacity-70 cursor-not-allowed' : ''
             }`}
           >
-            {loading ? (
-              <>
-                <Loader2 className="animate-spin" size={20} />
-                <span>Authenticating...</span>
-              </>
-            ) : (
-              'Sign In'
-            )}
+            {loading ? <><Loader2 className="animate-spin" size={20} /> Authenticating...</> : 'Sign In'}
           </button>
         </form>
-
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-          <button 
-            onClick={() => navigate('/')} 
-            className="text-sm font-medium text-gray-400 hover:text-blue-600 transition-colors inline-flex items-center gap-1"
-          >
-            ← Back to Main Website
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -1,1379 +1,778 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import {
-  User,
-
-
-  Banknote,
-  AlertCircle,
-  CheckCircle,
-  Loader2,
-  ArrowLeft,
-  Home,
-  Briefcase,
-  FileText,
-  Upload,
-  X,
-  Eye,
-  Download,
-  
-  GraduationCap,
- 
-  
-
-  Heart
+  Users, CheckCircle, XCircle, Loader2, AlertCircle,
+  FileText, Mail, Phone, Briefcase, Shield, RefreshCw,
+  ArrowLeft, ChevronRight, Building2, CreditCard,
+  UserCheck, Zap, BarChart3, Clock, Check, X,
+  ChevronDown, Eye, Search, Filter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import BackNavbar from './BackNavbar';
 
-// Configuration
-const config = {
-  API_BASE:'https://api.wemis.in/api',
-  MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
-  ALLOWED_FILE_TYPES: ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'],
-  RETRY_ATTEMPTS: 3,
-  STORAGE_KEY_PREFIX: 'onboarding_'
-};
+const API_BASE = "https://api.wemis.in/api";
 
-// Utility functions
-const sanitizeInput = (input) => {
-  if (!input) return '';
-  const div = document.createElement('div');
-  div.textContent = input;
-  return div.innerHTML;
-};
-
-const formatAadhar = (value) => {
-  const numbers = value.replace(/\D/g, '');
-  return numbers.slice(0, 12);
-};
-
-const formatPAN = (value) => {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
-};
-
-const formatIFSC = (value) => {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
-};
-
-const Onboarding = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  
-  // State management
-  const [token, setToken] = useState(null);
-  const [bgvId, setBgvId] = useState(null);
-  const [employeeId, setEmployeeId] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const [step, setStep] = useState(1);
-  const [submissionId, setSubmissionId] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [previewDoc, setPreviewDoc] = useState(null);
-  
-  // BGV Form State
-  const [formData, setFormData] = useState({
-    fullName: '',
-    dob: '',
-    contactNumber: '',
-    currentAddress: '',
-    permanentAddress: '',
-    aadharNumber: '',
-    panNumber: '',
-    educationDetails: [
-      { qualification: '', university: '', passingYear: '', percentage: '' }
-    ],
-    employmentHistory: [
-      { companyName: '', designation: '', duration: '', experienceLetter: false }
-    ],
-    references: [
-      { name: '', contactNumber: '', relationship: '', company: '' }
-    ]
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+const formatDate = (d) => {
+  if (!d) return 'N/A';
+  return new Date(d).toLocaleDateString('en-IN', {
+    year: 'numeric', month: 'short', day: 'numeric'
   });
-  
-  // Onboarding Form State
-  const [onboardingData, setOnboardingData] = useState({
-    bankName: '',
-    accountNumber: '',
-    confirmAccountNumber: '',
-    ifscCode: '',
-    upiId: '',
-    emergencyContactName: '',
-    emergencyContactNumber: '',
-    emergencyRelationship: '',
-    bloodGroup: '',
-    dateOfJoining: ''
-  });
-  
-  // Document upload state
-  const [uploadedDocs, setUploadedDocs] = useState({
-    AADHAR_CARD: null,
-    PAN_CARD: null,
-    DEGREE_CERTIFICATE: null,
-    PHOTOGRAPH: null
-  });
-  
-  // Extract token and bgvId from URL on mount
-  useEffect(() => {
-    const urlParams = new URLSearchParams(location.search);
-    const tokenParam = urlParams.get('token');
-    const bgvIdParam = urlParams.get('bgvId');
-    
-    if (!tokenParam) {
-      setError('No verification token found. Please use the link sent to your email.');
-    } else {
-      setToken(tokenParam);
-      setBgvId(bgvIdParam);
-      
-      // Store token in sessionStorage for security
-      sessionStorage.setItem('onboarding_token', tokenParam);
-      if (bgvIdParam) sessionStorage.setItem('bgv_id', bgvIdParam);
-      
-      // Load saved data and check status
-      loadSavedData(tokenParam);
-      checkBGVStatus(tokenParam, bgvIdParam);
-    }
-    
-    // Cleanup
-    return () => {
-      sessionStorage.removeItem('onboarding_token');
-      sessionStorage.removeItem('bgv_id');
-    };
-  }, [location]);
-  
-  // Load saved form data from localStorage
-  const loadSavedData = (tokenParam) => {
-    const saved = localStorage.getItem(`${config.STORAGE_KEY_PREFIX}${tokenParam}`);
-    if (saved) {
-      try {
-        const { formData: savedForm, onboardingData: savedOnboarding, step: savedStep, uploadedDocs: savedDocs } = JSON.parse(saved);
-        if (savedForm) setFormData(savedForm);
-        if (savedOnboarding) setOnboardingData(savedOnboarding);
-        if (savedStep) setStep(savedStep);
-        if (savedDocs) setUploadedDocs(savedDocs);
-      } catch (err) {
-        console.error('Error loading saved data:', err);
-      }
-    }
+};
+
+const getToken = () => localStorage.getItem('accessToken');
+
+const api = (method, url, data) =>
+  axios({ method, url: `${API_BASE}${url}`, data, headers: { Authorization: `Bearer ${getToken()}` } });
+
+// ─────────────────────────────────────────────
+// STATUS BADGE
+// ─────────────────────────────────────────────
+const Badge = ({ status }) => {
+  const map = {
+    BGV_SUBMITTED:       { label: 'BGV Submitted',       cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    BGV_APPROVED:        { label: 'BGV Approved',         cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    ONBOARDING_SUBMITTED:{ label: 'Onboarding Submitted', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+    COMPLETED:           { label: 'Completed',            cls: 'bg-green-50 text-green-700 border-green-200' },
+    BGV_IN_PROGRESS:     { label: 'BGV In Progress',      cls: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+    ONBOARDING:          { label: 'Onboarding',           cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+    CURRENT:             { label: 'Current Employee',     cls: 'bg-green-50 text-green-800 border-green-300' },
   };
-  
-  // Save form data to localStorage
-  const saveFormData = useCallback(() => {
-    if (token) {
-      localStorage.setItem(`${config.STORAGE_KEY_PREFIX}${token}`, JSON.stringify({
-        formData,
-        onboardingData,
-        step,
-        uploadedDocs
-      }));
-    }
-  }, [token, formData, onboardingData, step, uploadedDocs]);
-  
-  // Auto-save on data change
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      if (token && (formData.fullName || onboardingData.bankName)) {
-        saveFormData();
-      }
-    }, 500);
-    
-    return () => clearTimeout(debounceTimer);
-  }, [formData, onboardingData, step, uploadedDocs, token, saveFormData]);
-  
-  // Check BGV status
-  const checkBGVStatus = async (tokenParam, bgvIdParam) => {
-    setLoading(true);
-    try {
-      // First, try to get status from the BGV endpoint
-      const response = await axios.get(`${config.API_BASE}/public/bgv/status`, {
-        params: { token: tokenParam }
-      });
-      
-      console.log('BGV Status:', response.data);
-      
-      if (response.data?.data) {
-        const existingData = response.data.data;
-        setSubmissionId(existingData.id);
-        
-        if (existingData.employeeId) {
-          setEmployeeId(existingData.employeeId);
-        }
-        
-        // Determine current step based on completion status
-        if (existingData.onboardingCompleted) {
-          setStep(4); // Completed
-        } else if (existingData.documentsSubmitted) {
-          setStep(3);
-        } else if (existingData.formSubmitted) {
-          setStep(2);
-        }
-      }
-    } catch (err) {
-      console.error('Fetch BGV Status Error:', err);
-      // New submission - no existing data
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Handle BGV Form Submission
-  const handleSubmitBGV = async (e) => {
-    e.preventDefault();
-    
-    // Validation
-    const aadharRegex = /^\d{12}$/;
-    if (!aadharRegex.test(formData.aadharNumber.replace(/\s/g, ''))) {
-      setError('Please enter a valid 12-digit Aadhar number');
-      return;
-    }
-    
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-    if (!panRegex.test(formData.panNumber.toUpperCase())) {
-      setError('Please enter a valid PAN card number');
-      return;
-    }
-    
-    if (!formData.fullName.trim()) {
-      setError('Full name is required');
-      return;
-    }
-    
-    if (!formData.dob) {
-      setError('Date of birth is required');
-      return;
-    }
-    
-    if (!formData.contactNumber.match(/^\d{10}$/)) {
-      setError('Please enter a valid 10-digit mobile number');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const payload = {
-        fullName: sanitizeInput(formData.fullName),
-        dob: formData.dob,
-        contactNumber: formData.contactNumber,
-        currentAddress: sanitizeInput(formData.currentAddress),
-        permanentAddress: sanitizeInput(formData.permanentAddress || formData.currentAddress),
-        aadharNumber: formData.aadharNumber,
-        panNumber: formData.panNumber.toUpperCase(),
-        educationDetails: formData.educationDetails.filter(edu => edu.qualification && edu.university),
-        employmentHistory: formData.employmentHistory.filter(emp => emp.companyName && emp.designation),
-        references: formData.references.filter(ref => ref.name && ref.contactNumber)
-      };
-      
-      let response;
-      if (bgvId) {
-        // Update existing BGV
-        response = await axios.put(
-          `${config.API_BASE}/public/bgv/update-verification?token=${token}`,
-          payload
-        );
-      } else {
-        // Create new BGV submission
-        response = await axios.post(
-          `${config.API_BASE}/public/bgv/submit-verification?token=${token}`,
-          payload
-        );
-      }
-      
-      console.log('BGV Submission Response:', response.data);
-      
-      setSubmissionId(response.data?.data?.id || response.data?.id);
-      setSuccess('Verification details submitted successfully!');
-      setStep(2);
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(null), 3000);
-      
-    } catch (err) {
-      console.error('BGV Submission Error:', err);
-      if (err.response) {
-        setError(err.response.data?.message || err.response.data?.error || 'Failed to submit verification details');
-      } else {
-        setError('Network error. Please check your connection.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Handle Document Upload with retry logic
-  const uploadWithRetry = async (documentType, file, retries = config.RETRY_ATTEMPTS) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        await handleFileUpload(documentType, file);
-        return true;
-      } catch (err) {
-        if (i === retries - 1) throw err;
-        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-      }
-    }
-    return false;
-  };
-  
-  const handleFileUpload = async (documentType, file) => {
-    if (!file) return;
-    
-    // Validate file size
-    if (file.size > config.MAX_FILE_SIZE) {
-      setError(`${documentType.replace('_', ' ')} file size should be less than 5MB`);
-      return;
-    }
-    
-    // Validate file type
-    if (!config.ALLOWED_FILE_TYPES.includes(file.type)) {
-      setError(`${documentType.replace('_', ' ')} must be a PDF, JPEG, or PNG file`);
-      return;
-    }
-    
-    setUploading(true);
-    setError(null);
-    
-    const formDataObj = new FormData();
-    formDataObj.append('file', file);
-    
-    try {
-      const response = await axios.post(
-        `${config.API_BASE}/public/bgv/upload-docs?token=${token}&documentType=${documentType}`,
-        formDataObj,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        }
-      );
-      
-      console.log(`Upload ${documentType}:`, response.data);
-      
-      setUploadedDocs(prev => ({
-        ...prev,
-        [documentType]: { 
-          file, 
-          url: response.data?.data?.fileUrl || response.data?.fileUrl, 
-          uploaded: true,
-          fileName: file.name,
-          uploadDate: new Date().toISOString()
-        }
-      }));
-      
-      setSuccess(`${documentType.replace('_', ' ')} uploaded successfully!`);
-      setTimeout(() => setSuccess(null), 3000);
-      
-    } catch (err) {
-      console.error('Document Upload Error:', err);
-      setError(`Failed to upload ${documentType.replace('_', ' ')}. Please try again.`);
-      throw err;
-    } finally {
-      setUploading(false);
-    }
-  };
-  
-  const removeDocument = (documentType) => {
-    setUploadedDocs(prev => ({
-      ...prev,
-      [documentType]: null
-    }));
-    setSuccess(`${documentType.replace('_', ' ')} removed. You can upload a new file.`);
-    setTimeout(() => setSuccess(null), 3000);
-  };
-  
-  // Handle Onboarding Submission (Bank & Emergency)
-  const handleSubmitOnboarding = async (e) => {
-    e.preventDefault();
-    
-    // Validate bank details
-    if (onboardingData.accountNumber !== onboardingData.confirmAccountNumber) {
-      setError('Account numbers do not match');
-      return;
-    }
-    
-    if (!onboardingData.bankName || !onboardingData.accountNumber || !onboardingData.ifscCode) {
-      setError('Please fill all bank details');
-      return;
-    }
-    
-    if (!onboardingData.emergencyContactName || !onboardingData.emergencyContactNumber) {
-      setError('Please fill emergency contact details');
-      return;
-    }
-    
-    // Validate IFSC code format
-    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-    if (!ifscRegex.test(onboardingData.ifscCode.toUpperCase())) {
-      setError('Please enter a valid IFSC code');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const payload = {
-        bankName: sanitizeInput(onboardingData.bankName),
-        accountNumber: onboardingData.accountNumber,
-        ifscCode: onboardingData.ifscCode.toUpperCase(),
-        upiId: onboardingData.upiId || '',
-        emergencyContactName: sanitizeInput(onboardingData.emergencyContactName),
-        emergencyContactNumber: onboardingData.emergencyContactNumber,
-        emergencyRelationship: sanitizeInput(onboardingData.emergencyRelationship),
-        bloodGroup: onboardingData.bloodGroup,
-        dateOfJoining: onboardingData.dateOfJoining || new Date().toISOString().split('T')[0]
-      };
-      
-      const response = await axios.post(
-        `${config.API_BASE}/public/bgv/submit-onboarding?token=${token}`,
-        payload
-      );
-      
-      console.log('Onboarding Submission Response:', response.data);
-      
-      // Get employeeId from response
-      if (response.data?.data?.employeeId) {
-        setEmployeeId(response.data.data.employeeId);
-      }
-      
-      setSuccess('Onboarding completed successfully! Redirecting...');
-      
-      // Clear localStorage after successful submission
-      localStorage.removeItem(`${config.STORAGE_KEY_PREFIX}${token}`);
-      
-      // Redirect after 3 seconds
-      setTimeout(() => {
-        navigate('/onboarding-success', { 
-          state: { 
-            employeeId: response.data?.data?.employeeId,
-            message: 'Your onboarding has been completed successfully!' 
-          } 
-        });
-      }, 3000);
-      
-    } catch (err) {
-      console.error('Onboarding Submission Error:', err);
-      if (err.response) {
-        setError(err.response.data?.message || err.response.data?.error || 'Failed to submit onboarding details');
-      } else {
-        setError('Network error. Please check your connection.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Dynamic form handlers
-  const addEducation = () => {
-    setFormData(prev => ({
-      ...prev,
-      educationDetails: [...prev.educationDetails, { qualification: '', university: '', passingYear: '', percentage: '' }]
-    }));
-  };
-  
-  const removeEducation = (index) => {
-    if (formData.educationDetails.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        educationDetails: prev.educationDetails.filter((_, i) => i !== index)
-      }));
-    }
-  };
-  
-  const updateEducation = (index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      educationDetails: prev.educationDetails.map((edu, i) => 
-        i === index ? { ...edu, [field]: value } : edu
-      )
-    }));
-  };
-  
-  const addEmployment = () => {
-    setFormData(prev => ({
-      ...prev,
-      employmentHistory: [...prev.employmentHistory, { companyName: '', designation: '', duration: '', experienceLetter: false }]
-    }));
-  };
-  
-  const removeEmployment = (index) => {
-    if (formData.employmentHistory.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        employmentHistory: prev.employmentHistory.filter((_, i) => i !== index)
-      }));
-    }
-  };
-  
-  const updateEmployment = (index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      employmentHistory: prev.employmentHistory.map((emp, i) => 
-        i === index ? { ...emp, [field]: value } : emp
-      )
-    }));
-  };
-  
-  const addReference = () => {
-    setFormData(prev => ({
-      ...prev,
-      references: [...prev.references, { name: '', contactNumber: '', relationship: '', company: '' }]
-    }));
-  };
-  
-  const removeReference = (index) => {
-    if (formData.references.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        references: prev.references.filter((_, i) => i !== index)
-      }));
-    }
-  };
-  
-  const updateReference = (index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      references: prev.references.map((ref, i) => 
-        i === index ? { ...ref, [field]: value } : ref
-      )
-    }));
-  };
-  
-  // Computed properties
-  const allDocumentsUploaded = useMemo(() => {
-    return uploadedDocs.AADHAR_CARD?.uploaded && 
-           uploadedDocs.PAN_CARD?.uploaded && 
-           uploadedDocs.DEGREE_CERTIFICATE?.uploaded;
-  }, [uploadedDocs]);
-  
-  // Step indicator component
-  const renderStepIndicator = () => {
-    const steps = [
-      { number: 1, label: 'Personal & Professional Details', icon: User },
-      { number: 2, label: 'Document Upload', icon: Upload },
-      { number: 3, label: 'Bank & Emergency Details', icon: Banknote }
-    ];
-    
-    return (
-      <div className="mb-12">
-        <div className="flex items-center justify-between max-w-3xl mx-auto">
-          {steps.map((s, idx) => (
-            <React.Fragment key={s.number}>
-              <div className="flex flex-col items-center">
-                <div className={`
-                  w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all
-                  ${step >= s.number ? 'bg-black border-black text-white' : 'border-gray-200 text-gray-400'}
-                `}>
-                  {step > s.number ? (
-                    <CheckCircle size={24} />
-                  ) : (
-                    <s.icon size={20} />
-                  )}
-                </div>
-                <span className="text-[10px] mt-2 text-gray-500 uppercase tracking-widest hidden md:block">
-                  {s.label}
-                </span>
-              </div>
-              {idx < steps.length - 1 && (
-                <div className={`flex-1 h-px mx-4 ${step > s.number ? 'bg-black' : 'bg-gray-200'}`} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-    );
-  };
-  
-  // Document upload component
-  const DocumentUploadCard = ({ title, description, documentType, required = true }) => {
-    const isUploaded = uploadedDocs[documentType]?.uploaded;
-    const fileInfo = uploadedDocs[documentType];
-    
-    return (
-      <div className="border border-gray-100 p-4">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h3 className="text-sm font-medium">
-              {title}
-              {required && <span className="text-red-500 ml-1">*</span>}
-            </h3>
-            <p className="text-[10px] text-gray-400">{description}</p>
-          </div>
-          {isUploaded && <CheckCircle size={20} className="text-green-500" />}
-        </div>
-        
-        {!isUploaded ? (
-          <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 hover:border-black transition-colors cursor-pointer">
-            <div className="text-center">
-              <Upload size={24} className="mx-auto text-gray-400 mb-2" />
-              <span className="text-[10px] text-gray-500">Click to upload {title}</span>
-              <input
-                type="file"
-                accept={config.ALLOWED_FILE_TYPES.join(',')}
-                className="hidden"
-                onChange={(e) => uploadWithRetry(documentType, e.target.files[0])}
-                disabled={uploading}
-              />
-            </div>
-          </label>
-        ) : (
-          <div className="flex items-center justify-between p-3 bg-green-50">
-            <div className="flex items-center gap-2 flex-1">
-              <FileText size={16} className="text-green-600" />
-              <div className="flex-1">
-                <span className="text-xs">{fileInfo?.fileName || 'File uploaded successfully'}</span>
-                {fileInfo?.uploadDate && (
-                  <p className="text-[9px] text-gray-500">
-                    Uploaded: {new Date(fileInfo.uploadDate).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => fileInfo?.url && setPreviewDoc({ type: documentType, url: fileInfo.url })}
-                className="text-gray-600 hover:text-black transition-colors"
-                title="Preview"
-              >
-                <Eye size={14} />
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => removeDocument(documentType)}
-              className="text-red-500 text-[10px] hover:text-red-600"
-            >
-              Remove
-            </button>
-          </div>
+  const b = map[status] || { label: status || 'Unknown', cls: 'bg-gray-50 text-gray-600 border-gray-200' };
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest border rounded-full ${b.cls}`}>
+      {b.label}
+    </span>
+  );
+};
+
+// ─────────────────────────────────────────────
+// STAT CARD
+// ─────────────────────────────────────────────
+const StatCard = ({ label, value, sub, color, icon: Icon }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 16 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="bg-white border border-gray-100 rounded-xl p-5 flex items-start gap-4"
+  >
+    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
+      <Icon size={18} className="text-white" />
+    </div>
+    <div>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">{label}</p>
+      {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  </motion.div>
+);
+
+// ─────────────────────────────────────────────
+// CANDIDATE ROW
+// ─────────────────────────────────────────────
+const CandidateRow = ({ candidate, selected, onToggle, status }) => (
+  <motion.tr
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className={`border-b border-gray-50 transition-colors ${selected ? 'bg-indigo-50/40' : 'hover:bg-gray-50/60'}`}
+  >
+    <td className="px-4 py-4">
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={onToggle}
+        className="rounded border-gray-300 text-indigo-600 cursor-pointer"
+      />
+    </td>
+    <td className="px-4 py-4">
+      <div>
+        <p className="font-semibold text-gray-900 text-sm">{candidate.fullName || candidate.name || 'N/A'}</p>
+        <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+          <Mail size={9} /> {candidate.emailAddress || candidate.email || 'N/A'}
+        </p>
+        {(candidate.phoneNumber || candidate.phone) && (
+          <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+            <Phone size={9} /> {candidate.phoneNumber || candidate.phone}
+          </p>
         )}
       </div>
-    );
-  };
-  
-  // If no token
-  if (!token && !loading) {
-    return (
-      <>
-        <BackNavbar />
-        <div className="min-h-screen bg-white flex items-center justify-center p-6">
-          <div className="max-w-md w-full text-center">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-50 flex items-center justify-center">
-              <AlertCircle size={40} className="text-red-500" />
-            </div>
-            <h2 className="text-xl font-light mb-2">Invalid Access</h2>
-            <p className="text-gray-400 text-sm mb-6">
-              No verification token found. Please use the link sent to your email address.
-            </p>
+    </td>
+    <td className="px-4 py-4">
+      <p className="text-xs text-gray-600 flex items-center gap-1">
+        <Briefcase size={11} className="text-gray-400" />
+        {candidate.currentJobTitle || candidate.jobTitle || candidate.position || '—'}
+      </p>
+      {candidate.employeeId && (
+        <p className="text-[10px] text-indigo-500 mt-0.5 font-mono">{candidate.employeeId}</p>
+      )}
+    </td>
+    <td className="px-4 py-4">
+      <Badge status={status || candidate.bgvStatus || candidate.status} />
+    </td>
+    <td className="px-4 py-4 text-[10px] text-gray-400">
+      {formatDate(candidate.submittedAt || candidate.updatedAt || candidate.createdAt)}
+    </td>
+  </motion.tr>
+);
+
+// ─────────────────────────────────────────────
+// CONFIRMATION MODAL
+// ─────────────────────────────────────────────
+const ConfirmModal = ({ open, title, message, count, onConfirm, onCancel, loading, actionLabel, color }) => (
+  <AnimatePresence>
+    {open && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
+        >
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 mx-auto ${color === 'emerald' ? 'bg-emerald-100' : 'bg-green-100'}`}>
+            <CheckCircle size={28} className={color === 'emerald' ? 'text-emerald-600' : 'text-green-600'} />
+          </div>
+          <h3 className="text-lg font-bold text-center text-gray-900 mb-2">{title}</h3>
+          <p className="text-sm text-gray-500 text-center mb-2">{message}</p>
+          <p className="text-center text-2xl font-bold text-gray-900 mb-6">
+            {count} candidate{count !== 1 ? 's' : ''}
+          </p>
+          <div className="flex gap-3">
             <button
-              onClick={() => navigate('/')}
-              className="px-6 py-3 bg-black text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors"
+              onClick={onCancel}
+              disabled={loading}
+              className="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-lg text-sm hover:bg-gray-50 transition-all"
             >
-              Go to Homepage
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={loading}
+              className={`flex-1 text-white font-semibold py-2.5 rounded-lg text-sm transition-all flex items-center justify-center gap-2 ${
+                color === 'emerald'
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+              {actionLabel}
             </button>
           </div>
-        </div>
-      </>
-    );
-  }
-  
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+// ─────────────────────────────────────────────
+// SECTION: BGV APPROVAL (Step 2 of HR flow)
+// ─────────────────────────────────────────────
+const BGVApprovalSection = ({ onSuccess, onError }) => {
+  const [candidates, setCandidates] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const [processing, setProcessing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const fetchPending = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api('get', '/hr/bgv/pending-approval');
+      const data = res.data?.data || res.data || [];
+      setCandidates(Array.isArray(data) ? data : []);
+    } catch (err) {
+      onError(err.response?.data?.message || 'Failed to fetch pending approvals');
+    } finally {
+      setLoading(false);
+    }
+  }, [onError]);
+
+  useEffect(() => { fetchPending(); }, [fetchPending]);
+
+  const toggleAll = () => {
+    setSelected(selected.length === filtered.length ? [] : filtered.map(c => c.id));
+  };
+
+  const handleBulkApprove = async () => {
+    setProcessing(true);
+    try {
+      await api('post', '/hr/bgv/bulk-approve', selected);
+      onSuccess(`✅ ${selected.length} candidate(s) approved! Employee records created in ONBOARDING status.`);
+      setSelected([]);
+      setShowConfirm(false);
+      await fetchPending();
+    } catch (err) {
+      onError(err.response?.data?.message || 'Bulk approve failed');
+      setShowConfirm(false);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const filtered = candidates.filter(c =>
+    (c.fullName || c.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (c.emailAddress || c.email || '').toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <>
-      <BackNavbar />
-      
-      <div className="min-h-screen bg-white text-gray-900">
-        {/* Header */}
-        <div className="border-b border-gray-100 px-6 py-8">
-          <div className="max-w-4xl mx-auto">
+    <div className="space-y-5">
+      {/* Section Header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</div>
+            BGV Bulk Approval
+          </h2>
+          <p className="text-[11px] text-gray-400 mt-0.5 ml-8">
+            Candidates who completed BGV form submission — ready for HR approval
+          </p>
+        </div>
+        <button
+          onClick={fetchPending}
+          disabled={loading}
+          className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg transition-all"
+        >
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search candidates..."
+            className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-indigo-400 transition-colors bg-white"
+          />
+        </div>
+        {selected.length > 0 && (
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="flex items-center gap-2 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-emerald-700 transition-all"
+          >
+            <CheckCircle size={14} />
+            Approve Selected ({selected.length})
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="border border-gray-100 rounded-xl overflow-hidden">
+        {loading ? (
+          <div className="py-20 flex flex-col items-center gap-3">
+            <Loader2 size={24} className="animate-spin text-indigo-400" />
+            <span className="text-xs text-gray-400">Loading candidates...</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-20 flex flex-col items-center gap-3">
+            <CheckCircle size={32} className="text-gray-200" />
+            <p className="text-sm text-gray-400">No candidates pending BGV approval</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr className="text-[10px] text-gray-400 uppercase tracking-widest">
+                <th className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.length === filtered.length && filtered.length > 0}
+                    onChange={toggleAll}
+                    className="rounded border-gray-300 text-indigo-600 cursor-pointer"
+                  />
+                </th>
+                <th className="px-4 py-3 text-left font-bold">Candidate</th>
+                <th className="px-4 py-3 text-left font-bold">Position</th>
+                <th className="px-4 py-3 text-left font-bold">BGV Status</th>
+                <th className="px-4 py-3 text-left font-bold">Submitted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(c => (
+                <CandidateRow
+                  key={c.id}
+                  candidate={c}
+                  selected={selected.includes(c.id)}
+                  onToggle={() => setSelected(prev =>
+                    prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id]
+                  )}
+                  status="BGV_SUBMITTED"
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <ConfirmModal
+        open={showConfirm}
+        title="Bulk Approve BGV"
+        message="You are about to approve BGV for"
+        count={selected.length}
+        onConfirm={handleBulkApprove}
+        onCancel={() => setShowConfirm(false)}
+        loading={processing}
+        actionLabel="Approve All"
+        color="emerald"
+      />
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// SECTION: ONBOARDING FINALIZATION (Step 4 of HR flow)
+// ─────────────────────────────────────────────
+const OnboardingFinalizeSection = ({ onSuccess, onError }) => {
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const [processing, setProcessing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const fetchReady = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api('get', '/hr/bgv/ready-to-finalize');
+      const data = res.data?.data || res.data || [];
+      setEmployees(Array.isArray(data) ? data : []);
+    } catch (err) {
+      onError(err.response?.data?.message || 'Failed to fetch employees ready to finalize');
+    } finally {
+      setLoading(false);
+    }
+  }, [onError]);
+
+  useEffect(() => { fetchReady(); }, [fetchReady]);
+
+  const toggleAll = () => {
+    setSelected(selected.length === filtered.length ? [] : filtered.map(e => e.employeeId || e.id));
+  };
+
+  const handleBulkFinalize = async () => {
+    setProcessing(true);
+    try {
+      await api('post', '/hr/bgv/bulk-finalize', selected);
+      onSuccess(`🎉 ${selected.length} employee(s) finalized! Status set to CURRENT. All data merged into employee profiles.`);
+      setSelected([]);
+      setShowConfirm(false);
+      await fetchReady();
+    } catch (err) {
+      onError(err.response?.data?.message || 'Bulk finalize failed');
+      setShowConfirm(false);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const filtered = employees.filter(e =>
+    (e.fullName || e.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (e.emailAddress || e.email || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-5">
+      {/* Section Header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-green-600 text-white text-xs font-bold flex items-center justify-center">2</div>
+            Onboarding Finalization
+          </h2>
+          <p className="text-[11px] text-gray-400 mt-0.5 ml-8">
+            Employees who submitted bank & emergency details — ready for final activation
+          </p>
+        </div>
+        <button
+          onClick={fetchReady}
+          disabled={loading}
+          className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg transition-all"
+        >
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search employees..."
+            className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-green-400 transition-colors bg-white"
+          />
+        </div>
+        {selected.length > 0 && (
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="flex items-center gap-2 bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-green-700 transition-all"
+          >
+            <Zap size={14} />
+            Finalize Selected ({selected.length})
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="border border-gray-100 rounded-xl overflow-hidden">
+        {loading ? (
+          <div className="py-20 flex flex-col items-center gap-3">
+            <Loader2 size={24} className="animate-spin text-green-400" />
+            <span className="text-xs text-gray-400">Loading employees...</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-20 flex flex-col items-center gap-3">
+            <UserCheck size={32} className="text-gray-200" />
+            <p className="text-sm text-gray-400">No employees pending finalization</p>
+            <p className="text-xs text-gray-300">Candidates need to submit bank & emergency info first</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr className="text-[10px] text-gray-400 uppercase tracking-widest">
+                <th className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.length === filtered.length && filtered.length > 0}
+                    onChange={toggleAll}
+                    className="rounded border-gray-300 text-green-600 cursor-pointer"
+                  />
+                </th>
+                <th className="px-4 py-3 text-left font-bold">Employee</th>
+                <th className="px-4 py-3 text-left font-bold">Position / ID</th>
+                <th className="px-4 py-3 text-left font-bold">Status</th>
+                <th className="px-4 py-3 text-left font-bold">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(e => (
+                <CandidateRow
+                  key={e.id || e.employeeId}
+                  candidate={e}
+                  selected={selected.includes(e.employeeId || e.id)}
+                  onToggle={() => {
+                    const eid = e.employeeId || e.id;
+                    setSelected(prev =>
+                      prev.includes(eid) ? prev.filter(x => x !== eid) : [...prev, eid]
+                    );
+                  }}
+                  status="ONBOARDING_SUBMITTED"
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <ConfirmModal
+        open={showConfirm}
+        title="Bulk Finalize Onboarding"
+        message="You are about to activate as CURRENT employees:"
+        count={selected.length}
+        onConfirm={handleBulkFinalize}
+        onCancel={() => setShowConfirm(false)}
+        loading={processing}
+        actionLabel="Finalize All"
+        color="green"
+      />
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// WORKFLOW GUIDE
+// ─────────────────────────────────────────────
+const WorkflowGuide = () => {
+  const steps = [
+    { num: 1, actor: 'Candidate', label: 'Submits BGV Form', desc: 'Portal → personal, education, work history', status: 'BGV_SUBMITTED', color: 'bg-indigo-500' },
+    { num: 2, actor: 'HR', label: 'Bulk Approve BGV', desc: 'One click → creates employee in ONBOARDING', status: 'BGV_APPROVED', color: 'bg-emerald-500' },
+    { num: 3, actor: 'Candidate', label: 'Submits Bank & Emergency Info', desc: 'Portal shows bank form after approval', status: 'ONBOARDING_SUBMITTED', color: 'bg-amber-500' },
+    { num: 4, actor: 'HR', label: 'Bulk Finalize', desc: 'One click → Employee becomes CURRENT', status: 'CURRENT', color: 'bg-green-600' },
+  ];
+
+  return (
+    <div className="bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-100 rounded-xl p-6 mb-8">
+      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-5">Onboarding Workflow</h3>
+      <div className="flex flex-wrap items-center gap-2">
+        {steps.map((step, i) => (
+          <React.Fragment key={step.num}>
+            <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-lg px-4 py-3">
+              <div className={`w-8 h-8 rounded-full ${step.color} text-white text-xs font-bold flex items-center justify-center flex-shrink-0`}>
+                {step.num}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                    step.actor === 'HR' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
+                  }`}>
+                    {step.actor}
+                  </span>
+                </div>
+                <p className="text-xs font-semibold text-gray-800 mt-0.5">{step.label}</p>
+                <p className="text-[10px] text-gray-400">{step.desc}</p>
+              </div>
+            </div>
+            {i < steps.length - 1 && (
+              <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────
+const Onboarding = () => {
+  const navigate = useNavigate();
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [activeTab, setActiveTab] = useState('bgv-approval');
+  const [stats, setStats] = useState({ pendingApproval: 0, readyToFinalize: 0, total: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  const showError = (msg) => {
+    setError(msg);
+    setTimeout(() => setError(null), 6000);
+  };
+
+  const showSuccess = (msg) => {
+    setSuccess(msg);
+    setTimeout(() => setSuccess(null), 5000);
+  };
+
+  // Fetch stats for overview
+  const fetchStats = async () => {
+    setStatsLoading(true);
+    try {
+      const [pendingRes, finalizeRes] = await Promise.allSettled([
+        api('get', '/hr/bgv/pending-approval'),
+        api('get', '/hr/bgv/ready-to-finalize'),
+      ]);
+
+      const pending = pendingRes.status === 'fulfilled'
+        ? (pendingRes.value.data?.data || pendingRes.value.data || []).length : 0;
+      const finalize = finalizeRes.status === 'fulfilled'
+        ? (finalizeRes.value.data?.data || finalizeRes.value.data || []).length : 0;
+
+      setStats({ pendingApproval: pending, readyToFinalize: finalize, total: pending + finalize });
+    } catch {}
+    setStatsLoading(false);
+  };
+
+  useEffect(() => { fetchStats(); }, []);
+
+  // Re-fetch stats when success message fires (after bulk actions)
+  useEffect(() => {
+    if (success) fetchStats();
+  }, [success]);
+
+  const tabs = [
+    { id: 'bgv-approval', label: 'BGV Approval', icon: Shield, count: stats.pendingApproval },
+    { id: 'onboarding-finalize', label: 'Onboarding Finalize', icon: UserCheck, count: stats.readyToFinalize },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Top Bar */}
+      <div className="bg-white border-b border-gray-100 px-6 py-4 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-xs text-gray-400 hover:text-black transition-colors mb-4"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors"
             >
               <ArrowLeft size={14} />
-              Back to Home
+              Back
             </button>
-            <h1 className="text-2xl font-light tracking-tight">Onboarding Portal</h1>
-            <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest">
-              Complete your verification and onboarding process
-            </p>
-            {employeeId && (
-              <p className="text-[10px] text-green-600 mt-2">
-                Employee ID: {employeeId}
-              </p>
-            )}
-          </div>
-        </div>
-        
-        <div className="max-w-4xl mx-auto px-6 py-12">
-          {/* Step Indicator */}
-          {step <= 3 && renderStepIndicator()}
-          
-          {/* Error Message */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="mb-6 p-4 bg-red-50 border border-red-100 flex items-center gap-3"
-              >
-                <AlertCircle size={16} className="text-red-500" />
-                <p className="text-xs text-red-600 flex-1">{error}</p>
-                <button onClick={() => setError(null)} className="hover:opacity-70">
-                  <X size={14} className="text-red-400" />
-                </button>
-              </motion.div>
-            )}
-            
-            {success && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="mb-6 p-4 bg-green-50 border border-green-100 flex items-center gap-3"
-              >
-                <CheckCircle size={16} className="text-green-500" />
-                <p className="text-xs text-green-600 flex-1">{success}</p>
-                <button onClick={() => setSuccess(null)} className="hover:opacity-70">
-                  <X size={14} className="text-green-400" />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          {/* STEP 1: BGV Details Form */}
-          {step === 1 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-            >
-              <form onSubmit={handleSubmitBGV} className="space-y-8">
-                {/* Personal Information */}
-                <div className="border border-gray-100 p-6">
-                  <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <User size={16} />
-                    Personal Information
-                  </h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Full Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.fullName}
-                        onChange={(e) => setFormData({...formData, fullName: sanitizeInput(e.target.value)})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="As per Aadhar Card"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Date of Birth <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        max={new Date().toISOString().split('T')[0]}
-                        min="1950-01-01"
-                        value={formData.dob}
-                        onChange={(e) => setFormData({...formData, dob: e.target.value})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Contact Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        pattern="[0-9]{10}"
-                        maxLength="10"
-                        value={formData.contactNumber}
-                        onChange={(e) => setFormData({...formData, contactNumber: e.target.value.replace(/\D/g, '')})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="10-digit mobile number"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Aadhar Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        maxLength="12"
-                        value={formData.aadharNumber}
-                        onChange={(e) => setFormData({...formData, aadharNumber: formatAadhar(e.target.value)})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="12-digit Aadhar number"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        PAN Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        maxLength="10"
-                        value={formData.panNumber}
-                        onChange={(e) => setFormData({...formData, panNumber: formatPAN(e.target.value)})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm uppercase"
-                        placeholder="ABCDE1234F"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Current Address <span className="text-red-500">*</span>
-                      </label>
-                      <textarea
-                        required
-                        rows="2"
-                        value={formData.currentAddress}
-                        onChange={(e) => setFormData({...formData, currentAddress: sanitizeInput(e.target.value)})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm resize-none"
-                        placeholder="Flat/House No., Street, City, State, PIN Code"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Permanent Address
-                      </label>
-                      <textarea
-                        rows="2"
-                        value={formData.permanentAddress}
-                        onChange={(e) => setFormData({...formData, permanentAddress: sanitizeInput(e.target.value)})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm resize-none"
-                        placeholder="Leave blank if same as current address"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Education Details */}
-                <div className="border border-gray-100 p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                      <GraduationCap size={16} />
-                      Education Details
-                    </h2>
-                    <button
-                      type="button"
-                      onClick={addEducation}
-                      className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 hover:bg-black hover:text-white transition-all"
-                    >
-                      + Add Education
-                    </button>
-                  </div>
-                  
-                  {formData.educationDetails.map((edu, index) => (
-                    <div key={index} className="mb-6 pb-6 border-b border-gray-50 last:border-0">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-xs text-gray-500">Education #{index + 1}</span>
-                        {formData.educationDetails.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeEducation(index)}
-                            className="text-red-500 text-[10px] hover:text-red-600"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input
-                          type="text"
-                          placeholder="Qualification (e.g., B.Tech, MBA)"
-                          value={edu.qualification}
-                          onChange={(e) => updateEducation(index, 'qualification', sanitizeInput(e.target.value))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="University/Board"
-                          value={edu.university}
-                          onChange={(e) => updateEducation(index, 'university', sanitizeInput(e.target.value))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Passing Year"
-                          value={edu.passingYear}
-                          onChange={(e) => updateEducation(index, 'passingYear', e.target.value.replace(/\D/g, '').slice(0,4))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Percentage/CGPA"
-                          value={edu.percentage}
-                          onChange={(e) => updateEducation(index, 'percentage', e.target.value)}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Employment History */}
-                <div className="border border-gray-100 p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                      <Briefcase size={16} />
-                      Employment History
-                    </h2>
-                    <button
-                      type="button"
-                      onClick={addEmployment}
-                      className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 hover:bg-black hover:text-white transition-all"
-                    >
-                      + Add Experience
-                    </button>
-                  </div>
-                  
-                  {formData.employmentHistory.map((emp, index) => (
-                    <div key={index} className="mb-6 pb-6 border-b border-gray-50 last:border-0">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-xs text-gray-500">Experience #{index + 1}</span>
-                        {formData.employmentHistory.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeEmployment(index)}
-                            className="text-red-500 text-[10px] hover:text-red-600"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input
-                          type="text"
-                          placeholder="Company Name"
-                          value={emp.companyName}
-                          onChange={(e) => updateEmployment(index, 'companyName', sanitizeInput(e.target.value))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Designation"
-                          value={emp.designation}
-                          onChange={(e) => updateEmployment(index, 'designation', sanitizeInput(e.target.value))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Duration (e.g., 2 Years)"
-                          value={emp.duration}
-                          onChange={(e) => updateEmployment(index, 'duration', sanitizeInput(e.target.value))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                        <label className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={emp.experienceLetter}
-                            onChange={(e) => updateEmployment(index, 'experienceLetter', e.target.checked)}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-[10px] text-gray-500">Experience Letter Available</span>
-                        </label>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Professional References */}
-                <div className="border border-gray-100 p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                      <User size={16} />
-                      Professional References
-                    </h2>
-                    <button
-                      type="button"
-                      onClick={addReference}
-                      className="text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1 hover:bg-black hover:text-white transition-all"
-                    >
-                      + Add Reference
-                    </button>
-                  </div>
-                  
-                  {formData.references.map((ref, index) => (
-                    <div key={index} className="mb-6 pb-6 border-b border-gray-50 last:border-0">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-xs text-gray-500">Reference #{index + 1}</span>
-                        {formData.references.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeReference(index)}
-                            className="text-red-500 text-[10px] hover:text-red-600"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input
-                          type="text"
-                          placeholder="Full Name"
-                          value={ref.name}
-                          onChange={(e) => updateReference(index, 'name', sanitizeInput(e.target.value))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                        <input
-                          type="tel"
-                          placeholder="Contact Number"
-                          value={ref.contactNumber}
-                          onChange={(e) => updateReference(index, 'contactNumber', e.target.value.replace(/\D/g, '').slice(0,10))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Relationship (e.g., Manager, Colleague)"
-                          value={ref.relationship}
-                          onChange={(e) => updateReference(index, 'relationship', sanitizeInput(e.target.value))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Company Name"
-                          value={ref.company}
-                          onChange={(e) => updateReference(index, 'company', sanitizeInput(e.target.value))}
-                          className="px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-black text-white py-4 text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {loading ? <Loader2 className="animate-spin" size={16} /> : null}
-                  {loading ? 'Submitting...' : 'Continue to Document Upload'}
-                </button>
-              </form>
-            </motion.div>
-          )}
-          
-          {/* STEP 2: Document Upload */}
-          {step === 2 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              <div className="border border-gray-100 p-6">
-                <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                  <Upload size={16} />
-                  Upload Required Documents
-                </h2>
-                
-                <p className="text-xs text-gray-500 mb-6">
-                  Please upload clear, legible copies of the following documents. Accepted formats: PDF, JPEG, PNG (Max 5MB each)
-                </p>
-                
-                <div className="space-y-6">
-                  <DocumentUploadCard
-                    title="Aadhar Card"
-                    description="Front & Back (or combined PDF)"
-                    documentType="AADHAR_CARD"
-                    required={true}
-                  />
-                  
-                  <DocumentUploadCard
-                    title="PAN Card"
-                    description="Clear copy of PAN card"
-                    documentType="PAN_CARD"
-                    required={true}
-                  />
-                  
-                  <DocumentUploadCard
-                    title="Degree Certificate"
-                    description="Highest qualification degree/provisional certificate"
-                    documentType="DEGREE_CERTIFICATE"
-                    required={true}
-                  />
-                  
-                  <DocumentUploadCard
-                    title="Recent Photograph"
-                    description="Passport size photo (Optional)"
-                    documentType="PHOTOGRAPH"
-                    required={false}
-                  />
-                </div>
-                
-                <div className="flex gap-4 mt-8">
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="flex-1 border border-gray-300 text-gray-600 py-3 text-[11px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-all"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStep(3)}
-                    disabled={!allDocumentsUploaded() || uploading}
-                    className="flex-1 bg-black text-white py-3 text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {uploading ? <Loader2 className="animate-spin" size={16} /> : null}
-                    Continue to Bank Details
-                  </button>
-                </div>
-                
-                {!allDocumentsUploaded() && (
-                  <p className="text-[10px] text-red-500 text-center mt-4">
-                    Please upload all required documents (Aadhar, PAN, Degree Certificate) to continue
-                  </p>
-                )}
+            <div className="h-4 w-px bg-gray-200" />
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Users size={16} className="text-white" />
               </div>
-            </motion.div>
-          )}
-          
-          {/* STEP 3: Onboarding (Bank & Emergency) */}
-          {step === 3 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-            >
-              <form onSubmit={handleSubmitOnboarding} className="space-y-8">
-                {/* Bank Details */}
-                <div className="border border-gray-100 p-6">
-                  <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <Banknote size={16} />
-                    Bank Account Details
-                  </h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Bank Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={onboardingData.bankName}
-                        onChange={(e) => setOnboardingData({...onboardingData, bankName: sanitizeInput(e.target.value)})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="e.g., State Bank of India"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Account Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={onboardingData.accountNumber}
-                        onChange={(e) => setOnboardingData({...onboardingData, accountNumber: e.target.value.replace(/\s/g, '')})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="Your bank account number"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Confirm Account Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={onboardingData.confirmAccountNumber}
-                        onChange={(e) => setOnboardingData({...onboardingData, confirmAccountNumber: e.target.value.replace(/\s/g, '')})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="Re-enter account number"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        IFSC Code <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        maxLength="11"
-                        value={onboardingData.ifscCode}
-                        onChange={(e) => setOnboardingData({...onboardingData, ifscCode: formatIFSC(e.target.value)})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm uppercase"
-                        placeholder="e.g., SBIN0001234"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        UPI ID (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={onboardingData.upiId}
-                        onChange={(e) => setOnboardingData({...onboardingData, upiId: e.target.value})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="e.g., name@okhdfcbank"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Emergency Contact */}
-                <div className="border border-gray-100 p-6">
-                  <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <Heart size={16} />
-                    Emergency Contact Details
-                  </h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Contact Person Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={onboardingData.emergencyContactName}
-                        onChange={(e) => setOnboardingData({...onboardingData, emergencyContactName: sanitizeInput(e.target.value)})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="Full name of emergency contact"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Contact Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        pattern="[0-9]{10}"
-                        maxLength="10"
-                        value={onboardingData.emergencyContactNumber}
-                        onChange={(e) => setOnboardingData({...onboardingData, emergencyContactNumber: e.target.value.replace(/\D/g, '')})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="10-digit mobile number"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Relationship <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={onboardingData.emergencyRelationship}
-                        onChange={(e) => setOnboardingData({...onboardingData, emergencyRelationship: sanitizeInput(e.target.value)})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                        placeholder="e.g., Father, Mother, Spouse"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Blood Group
-                      </label>
-                      <select
-                        value={onboardingData.bloodGroup}
-                        onChange={(e) => setOnboardingData({...onboardingData, bloodGroup: e.target.value})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none text-sm"
-                      >
-                        <option value="">Select Blood Group</option>
-                        <option value="A+">A+</option>
-                        <option value="A-">A-</option>
-                        <option value="B+">B+</option>
-                        <option value="B-">B-</option>
-                        <option value="O+">O+</option>
-                        <option value="O-">O-</option>
-                        <option value="AB+">AB+</option>
-                        <option value="AB-">AB-</option>
-                      </select>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Expected Date of Joining
-                      </label>
-                      <input
-                        type="date"
-                        min={new Date().toISOString().split('T')[0]}
-                        value={onboardingData.dateOfJoining}
-                        onChange={(e) => setOnboardingData({...onboardingData, dateOfJoining: e.target.value})}
-                        className="w-full px-0 py-2 border-b border-gray-100 focus:border-black outline-none transition-colors text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setStep(2)}
-                    className="flex-1 border border-gray-300 text-gray-600 py-4 text-[11px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-all"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-black text-white py-4 text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {loading ? <Loader2 className="animate-spin" size={16} /> : null}
-                    Submit Onboarding
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-          
-          {/* Document Preview Modal */}
-          {previewDoc && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setPreviewDoc(null)}>
-              <div className="bg-white max-w-4xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center p-4 border-b">
-                  <h3 className="text-sm font-bold">{previewDoc.type.replace('_', ' ')}</h3>
-                  <button onClick={() => setPreviewDoc(null)} className="hover:opacity-70">
-                    <X size={20} />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-auto p-4">
-                  {previewDoc.url?.endsWith('.pdf') ? (
-                    <iframe src={previewDoc.url} className="w-full h-[70vh]" title="Document Preview" />
-                  ) : (
-                    <img src={previewDoc.url} alt="Document Preview" className="max-w-full h-auto mx-auto" />
-                  )}
-                </div>
-                <div className="p-4 border-t">
-                  <a
-                    href={previewDoc.url}
-                    download
-                    className="inline-flex items-center gap-2 text-xs text-black hover:text-gray-600"
-                  >
-                    <Download size={14} />
-                    Download
-                  </a>
-                </div>
+              <div>
+                <h1 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Onboarding Dashboard</h1>
+                <p className="text-[10px] text-gray-400 uppercase tracking-widest">HR · Background Verification & Employee Activation</p>
               </div>
             </div>
-          )}
+          </div>
+          <button
+            onClick={fetchStats}
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg transition-all"
+          >
+            <RefreshCw size={12} className={statsLoading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
         </div>
       </div>
-    </>
+
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+        {/* Notifications */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-4"
+            >
+              <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-red-600 flex-1">{error}</p>
+              <button onClick={() => setError(null)}>
+                <X size={14} className="text-red-400 hover:text-red-600" />
+              </button>
+            </motion.div>
+          )}
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex items-start gap-3 bg-emerald-50 border border-emerald-100 rounded-xl p-4"
+            >
+              <CheckCircle size={16} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-emerald-700 flex-1">{success}</p>
+              <button onClick={() => setSuccess(null)}>
+                <X size={14} className="text-emerald-400 hover:text-emerald-600" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Stat Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            label="Pending BGV Approval"
+            value={statsLoading ? '—' : stats.pendingApproval}
+            sub="Candidates who submitted BGV form"
+            color="bg-indigo-500"
+            icon={Shield}
+          />
+          <StatCard
+            label="Ready to Finalize"
+            value={statsLoading ? '—' : stats.readyToFinalize}
+            sub="Employees who submitted bank info"
+            color="bg-green-500"
+            icon={UserCheck}
+          />
+          <StatCard
+            label="Total Pending Actions"
+            value={statsLoading ? '—' : stats.total}
+            sub="Across all onboarding stages"
+            color="bg-purple-500"
+            icon={BarChart3}
+          />
+        </div>
+
+        {/* Workflow Guide */}
+        <WorkflowGuide />
+
+        {/* Tabs */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          {/* Tab Bar */}
+          <div className="flex border-b border-gray-100 bg-gray-50/50">
+            {tabs.map(tab => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-widest transition-all relative ${
+                    active
+                      ? 'text-gray-900 bg-white'
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="tab-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
+                    />
+                  )}
+                  <Icon size={14} />
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      active ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-500'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-6">
+            <AnimatePresence mode="wait">
+              {activeTab === 'bgv-approval' && (
+                <motion.div
+                  key="bgv-approval"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                >
+                  <BGVApprovalSection onSuccess={showSuccess} onError={showError} />
+                </motion.div>
+              )}
+              {activeTab === 'onboarding-finalize' && (
+                <motion.div
+                  key="onboarding-finalize"
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                >
+                  <OnboardingFinalizeSection onSuccess={showSuccess} onError={showError} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* API Quick Reference */}
+        <details className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+          <summary className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer hover:bg-gray-50 flex items-center gap-2">
+            <FileText size={14} />
+            API Reference (Developer)
+          </summary>
+          <div className="px-6 pb-6 pt-2 space-y-3">
+            {[
+              { method: 'GET',  url: '/hr/bgv/pending-approval',  desc: 'Fetch candidates with BGV_SUBMITTED status' },
+              { method: 'POST', url: '/hr/bgv/bulk-approve',       desc: 'Approve BGVs → creates employees in ONBOARDING', body: '["bgv_id_1", "bgv_id_2"]' },
+              { method: 'GET',  url: '/hr/bgv/ready-to-finalize',  desc: 'Fetch employees with ONBOARDING_SUBMITTED status' },
+              { method: 'POST', url: '/hr/bgv/bulk-finalize',      desc: 'Finalize onboarding → employee status becomes CURRENT', body: '["EMP-ID-1", "EMP-ID-2"]' },
+            ].map(r => (
+              <div key={r.url} className="flex items-start gap-3 text-xs font-mono bg-gray-50 rounded-lg p-3">
+                <span className={`font-bold flex-shrink-0 ${r.method === 'GET' ? 'text-blue-500' : 'text-green-600'}`}>
+                  {r.method}
+                </span>
+                <div className="flex-1">
+                  <p className="text-gray-600">{r.url}</p>
+                  <p className="text-gray-400 font-sans text-[10px] mt-0.5">{r.desc}</p>
+                  {r.body && <p className="text-gray-500 mt-1 text-[10px]">Body: {r.body}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+
+      </div>
+    </div>
   );
 };
 
