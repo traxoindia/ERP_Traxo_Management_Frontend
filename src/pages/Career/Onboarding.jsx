@@ -1,777 +1,327 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import {
-  Users, CheckCircle, XCircle, Loader2, AlertCircle,
-  FileText, Mail, Phone, Briefcase, Shield, RefreshCw,
-  ArrowLeft, ChevronRight, Building2, CreditCard,
-  UserCheck, Zap, BarChart3, Clock, Check, X,
-  ChevronDown, Eye, Search, Filter
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  CheckCircle, 
+  Users, 
+  CreditCard, 
+  Zap, 
+  RefreshCcw, 
+  ChevronRight,
+  AlertCircle
+} from 'lucide-react'; // Optional: icon names for context
 
-const API_BASE = "https://api.wemis.in/api";
+const Onboarding = () => {
+  const [activeTab, setActiveTab] = useState('pending');
+  const [loading, setLoading] = useState(false);
+  const [token, setToken] = useState("");
+  
+  const [pendingList, setPendingList] = useState([]);
+  const [readyList, setReadyList] = useState([]);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
 
-// ─────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────
-const formatDate = (d) => {
-  if (!d) return 'N/A';
-  return new Date(d).toLocaleDateString('en-IN', {
-    year: 'numeric', month: 'short', day: 'numeric'
+  const [bankDetails, setBankDetails] = useState({
+    bankName: "",
+    accountNumber: "",
+    ifscCode: "",
+    emergencyContactName: "",
+    emergencyContactNumber: ""
   });
-};
 
-const getToken = () => localStorage.getItem('accessToken');
+  const BASE_URL = "https://api.wemis.in";
 
-const api = (method, url, data) =>
-  axios({ method, url: `${API_BASE}${url}`, data, headers: { Authorization: `Bearer ${getToken()}` } });
+  useEffect(() => {
+    const storedToken = localStorage.getItem('accessToken');
+    setToken(storedToken || "");
+    fetchDashboardData(storedToken);
+  }, []);
 
-// ─────────────────────────────────────────────
-// STATUS BADGE
-// ─────────────────────────────────────────────
-const Badge = ({ status }) => {
-  const map = {
-    BGV_SUBMITTED:       { label: 'BGV Submitted',       cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-    BGV_APPROVED:        { label: 'BGV Approved',         cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    ONBOARDING_SUBMITTED:{ label: 'Onboarding Submitted', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-    COMPLETED:           { label: 'Completed',            cls: 'bg-green-50 text-green-700 border-green-200' },
-    BGV_IN_PROGRESS:     { label: 'BGV In Progress',      cls: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-    ONBOARDING:          { label: 'Onboarding',           cls: 'bg-purple-50 text-purple-700 border-purple-200' },
-    CURRENT:             { label: 'Current Employee',     cls: 'bg-green-50 text-green-800 border-green-300' },
-  };
-  const b = map[status] || { label: status || 'Unknown', cls: 'bg-gray-50 text-gray-600 border-gray-200' };
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest border rounded-full ${b.cls}`}>
-      {b.label}
-    </span>
-  );
-};
+  const getHeaders = (t) => ({
+    headers: { Authorization: `Bearer ${t || token}`, 'Content-Type': 'application/json' }
+  });
 
-// ─────────────────────────────────────────────
-// STAT CARD
-// ─────────────────────────────────────────────
-const StatCard = ({ label, value, sub, color, icon: Icon }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 16 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-white border border-gray-100 rounded-xl p-5 flex items-start gap-4"
-  >
-    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
-      <Icon size={18} className="text-white" />
-    </div>
-    <div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">{label}</p>
-      {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
-    </div>
-  </motion.div>
-);
-
-// ─────────────────────────────────────────────
-// CANDIDATE ROW
-// ─────────────────────────────────────────────
-const CandidateRow = ({ candidate, selected, onToggle, status }) => (
-  <motion.tr
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    className={`border-b border-gray-50 transition-colors ${selected ? 'bg-indigo-50/40' : 'hover:bg-gray-50/60'}`}
-  >
-    <td className="px-4 py-4">
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={onToggle}
-        className="rounded border-gray-300 text-indigo-600 cursor-pointer"
-      />
-    </td>
-    <td className="px-4 py-4">
-      <div>
-        <p className="font-semibold text-gray-900 text-sm">{candidate.fullName || candidate.name || 'N/A'}</p>
-        <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-          <Mail size={9} /> {candidate.emailAddress || candidate.email || 'N/A'}
-        </p>
-        {(candidate.phoneNumber || candidate.phone) && (
-          <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-            <Phone size={9} /> {candidate.phoneNumber || candidate.phone}
-          </p>
-        )}
-      </div>
-    </td>
-    <td className="px-4 py-4">
-      <p className="text-xs text-gray-600 flex items-center gap-1">
-        <Briefcase size={11} className="text-gray-400" />
-        {candidate.currentJobTitle || candidate.jobTitle || candidate.position || '—'}
-      </p>
-      {candidate.employeeId && (
-        <p className="text-[10px] text-indigo-500 mt-0.5 font-mono">{candidate.employeeId}</p>
-      )}
-    </td>
-    <td className="px-4 py-4">
-      <Badge status={status || candidate.bgvStatus || candidate.status} />
-    </td>
-    <td className="px-4 py-4 text-[10px] text-gray-400">
-      {formatDate(candidate.submittedAt || candidate.updatedAt || candidate.createdAt)}
-    </td>
-  </motion.tr>
-);
-
-// ─────────────────────────────────────────────
-// CONFIRMATION MODAL
-// ─────────────────────────────────────────────
-const ConfirmModal = ({ open, title, message, count, onConfirm, onCancel, loading, actionLabel, color }) => (
-  <AnimatePresence>
-    {open && (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4"
-      >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
-        >
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 mx-auto ${color === 'emerald' ? 'bg-emerald-100' : 'bg-green-100'}`}>
-            <CheckCircle size={28} className={color === 'emerald' ? 'text-emerald-600' : 'text-green-600'} />
-          </div>
-          <h3 className="text-lg font-bold text-center text-gray-900 mb-2">{title}</h3>
-          <p className="text-sm text-gray-500 text-center mb-2">{message}</p>
-          <p className="text-center text-2xl font-bold text-gray-900 mb-6">
-            {count} candidate{count !== 1 ? 's' : ''}
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={onCancel}
-              disabled={loading}
-              className="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-lg text-sm hover:bg-gray-50 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onConfirm}
-              disabled={loading}
-              className={`flex-1 text-white font-semibold py-2.5 rounded-lg text-sm transition-all flex items-center justify-center gap-2 ${
-                color === 'emerald'
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
-            >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
-              {actionLabel}
-            </button>
-          </div>
-        </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
-
-// ─────────────────────────────────────────────
-// SECTION: BGV APPROVAL (Step 2 of HR flow)
-// ─────────────────────────────────────────────
-const BGVApprovalSection = ({ onSuccess, onError }) => {
-  const [candidates, setCandidates] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState([]);
-  const [processing, setProcessing] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [search, setSearch] = useState('');
-
-  const fetchPending = useCallback(async () => {
+  const fetchDashboardData = async (t) => {
     setLoading(true);
+    console.log("%c [System] Syncing Dashboard Data...", "color: #6366f1; font-weight: bold");
     try {
-      const res = await api('get', '/hr/bgv/pending-approval');
-      const data = res.data?.data || res.data || [];
-      setCandidates(Array.isArray(data) ? data : []);
+      const [resPending, resReady] = await Promise.all([
+        axios.get(`${BASE_URL}/api/hr/bgv/pending-approval`, getHeaders(t)),
+        axios.get(`${BASE_URL}/api/hr/bgv/ready-to-finalize`, getHeaders(t))
+      ]);
+      setPendingList(resPending.data || []);
+      setReadyList(resReady.data || []);
+      console.log("Pending Approval List:", resPending.data);
+      console.log("Ready to Finalize List:", resReady.data);
     } catch (err) {
-      onError(err.response?.data?.message || 'Failed to fetch pending approvals');
+      console.error("Sync Error:", err);
     } finally {
       setLoading(false);
     }
-  }, [onError]);
-
-  useEffect(() => { fetchPending(); }, [fetchPending]);
-
-  const toggleAll = () => {
-    setSelected(selected.length === filtered.length ? [] : filtered.map(c => c.id));
   };
 
-  const handleBulkApprove = async () => {
-    setProcessing(true);
-    try {
-      await api('post', '/hr/bgv/bulk-approve', selected);
-      onSuccess(`✅ ${selected.length} candidate(s) approved! Employee records created in ONBOARDING status.`);
-      setSelected([]);
-      setShowConfirm(false);
-      await fetchPending();
-    } catch (err) {
-      onError(err.response?.data?.message || 'Bulk approve failed');
-      setShowConfirm(false);
-    } finally {
-      setProcessing(false);
-    }
-  };
+  const handleOnboardingSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedCandidate) return;
 
-  const filtered = candidates.filter(c =>
-    (c.fullName || c.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.emailAddress || c.email || '').toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="space-y-5">
-      {/* Section Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</div>
-            BGV Bulk Approval
-          </h2>
-          <p className="text-[11px] text-gray-400 mt-0.5 ml-8">
-            Candidates who completed BGV form submission — ready for HR approval
-          </p>
-        </div>
-        <button
-          onClick={fetchPending}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg transition-all"
-        >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
-      </div>
-
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search candidates..."
-            className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-indigo-400 transition-colors bg-white"
-          />
-        </div>
-        {selected.length > 0 && (
-          <button
-            onClick={() => setShowConfirm(true)}
-            className="flex items-center gap-2 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-emerald-700 transition-all"
-          >
-            <CheckCircle size={14} />
-            Approve Selected ({selected.length})
-          </button>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="border border-gray-100 rounded-xl overflow-hidden">
-        {loading ? (
-          <div className="py-20 flex flex-col items-center gap-3">
-            <Loader2 size={24} className="animate-spin text-indigo-400" />
-            <span className="text-xs text-gray-400">Loading candidates...</span>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-20 flex flex-col items-center gap-3">
-            <CheckCircle size={32} className="text-gray-200" />
-            <p className="text-sm text-gray-400">No candidates pending BGV approval</p>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr className="text-[10px] text-gray-400 uppercase tracking-widest">
-                <th className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.length === filtered.length && filtered.length > 0}
-                    onChange={toggleAll}
-                    className="rounded border-gray-300 text-indigo-600 cursor-pointer"
-                  />
-                </th>
-                <th className="px-4 py-3 text-left font-bold">Candidate</th>
-                <th className="px-4 py-3 text-left font-bold">Position</th>
-                <th className="px-4 py-3 text-left font-bold">BGV Status</th>
-                <th className="px-4 py-3 text-left font-bold">Submitted</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(c => (
-                <CandidateRow
-                  key={c.id}
-                  candidate={c}
-                  selected={selected.includes(c.id)}
-                  onToggle={() => setSelected(prev =>
-                    prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id]
-                  )}
-                  status="BGV_SUBMITTED"
-                />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <ConfirmModal
-        open={showConfirm}
-        title="Bulk Approve BGV"
-        message="You are about to approve BGV for"
-        count={selected.length}
-        onConfirm={handleBulkApprove}
-        onCancel={() => setShowConfirm(false)}
-        loading={processing}
-        actionLabel="Approve All"
-        color="emerald"
-      />
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// SECTION: ONBOARDING FINALIZATION (Step 4 of HR flow)
-// ─────────────────────────────────────────────
-const OnboardingFinalizeSection = ({ onSuccess, onError }) => {
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState([]);
-  const [processing, setProcessing] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [search, setSearch] = useState('');
-
-  const fetchReady = useCallback(async () => {
     setLoading(true);
+    console.log(`%c [API] Submitting Onboarding for ID: ${selectedCandidate.id}`, "color: #10b981");
+    console.log("Payload:", bankDetails);
+
     try {
-      const res = await api('get', '/hr/bgv/ready-to-finalize');
-      const data = res.data?.data || res.data || [];
-      setEmployees(Array.isArray(data) ? data : []);
+      await axios.post(`${BASE_URL}/api/public/bgv/submit-onboarding/${selectedCandidate.id}`, bankDetails);
+      console.log("Submission Successful");
+      setBankDetails({ bankName: "", accountNumber: "", ifscCode: "", emergencyContactName: "", emergencyContactNumber: "" });
+      setSelectedCandidate(null);
+      fetchDashboardData();
+      setActiveTab('finalize');
     } catch (err) {
-      onError(err.response?.data?.message || 'Failed to fetch employees ready to finalize');
+      console.error("Submission Error:", err);
+      alert("Failed to submit onboarding details.");
     } finally {
       setLoading(false);
     }
-  }, [onError]);
-
-  useEffect(() => { fetchReady(); }, [fetchReady]);
-
-  const toggleAll = () => {
-    setSelected(selected.length === filtered.length ? [] : filtered.map(e => e.employeeId || e.id));
   };
 
   const handleBulkFinalize = async () => {
-    setProcessing(true);
+    const ids = readyList.map(emp => emp.id);
+    if (ids.length === 0) return;
+
+    console.log("%c [API] Executing Bulk Finalize", "color: #ef4444");
+    console.log("Target IDs:", ids);
+
+    setLoading(true);
     try {
-      await api('post', '/hr/bgv/bulk-finalize', selected);
-      onSuccess(`🎉 ${selected.length} employee(s) finalized! Status set to CURRENT. All data merged into employee profiles.`);
-      setSelected([]);
-      setShowConfirm(false);
-      await fetchReady();
+      await axios.post(`${BASE_URL}/api/hr/bgv/bulk-finalize`, ids, getHeaders());
+      console.log("Finalization Complete");
+      fetchDashboardData();
+      alert("All employees have been finalized successfully.");
     } catch (err) {
-      onError(err.response?.data?.message || 'Bulk finalize failed');
-      setShowConfirm(false);
+      console.error("Finalize Error:", err);
     } finally {
-      setProcessing(false);
+      setLoading(false);
     }
   };
 
-  const filtered = employees.filter(e =>
-    (e.fullName || e.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (e.emailAddress || e.email || '').toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
-    <div className="space-y-5">
-      {/* Section Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-green-600 text-white text-xs font-bold flex items-center justify-center">2</div>
-            Onboarding Finalization
-          </h2>
-          <p className="text-[11px] text-gray-400 mt-0.5 ml-8">
-            Employees who submitted bank & emergency details — ready for final activation
-          </p>
-        </div>
-        <button
-          onClick={fetchReady}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg transition-all"
-        >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
-      </div>
-
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search employees..."
-            className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-green-400 transition-colors bg-white"
-          />
-        </div>
-        {selected.length > 0 && (
-          <button
-            onClick={() => setShowConfirm(true)}
-            className="flex items-center gap-2 bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-green-700 transition-all"
-          >
-            <Zap size={14} />
-            Finalize Selected ({selected.length})
-          </button>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="border border-gray-100 rounded-xl overflow-hidden">
-        {loading ? (
-          <div className="py-20 flex flex-col items-center gap-3">
-            <Loader2 size={24} className="animate-spin text-green-400" />
-            <span className="text-xs text-gray-400">Loading employees...</span>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-20 flex flex-col items-center gap-3">
-            <UserCheck size={32} className="text-gray-200" />
-            <p className="text-sm text-gray-400">No employees pending finalization</p>
-            <p className="text-xs text-gray-300">Candidates need to submit bank & emergency info first</p>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr className="text-[10px] text-gray-400 uppercase tracking-widest">
-                <th className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.length === filtered.length && filtered.length > 0}
-                    onChange={toggleAll}
-                    className="rounded border-gray-300 text-green-600 cursor-pointer"
-                  />
-                </th>
-                <th className="px-4 py-3 text-left font-bold">Employee</th>
-                <th className="px-4 py-3 text-left font-bold">Position / ID</th>
-                <th className="px-4 py-3 text-left font-bold">Status</th>
-                <th className="px-4 py-3 text-left font-bold">Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(e => (
-                <CandidateRow
-                  key={e.id || e.employeeId}
-                  candidate={e}
-                  selected={selected.includes(e.employeeId || e.id)}
-                  onToggle={() => {
-                    const eid = e.employeeId || e.id;
-                    setSelected(prev =>
-                      prev.includes(eid) ? prev.filter(x => x !== eid) : [...prev, eid]
-                    );
-                  }}
-                  status="ONBOARDING_SUBMITTED"
-                />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <ConfirmModal
-        open={showConfirm}
-        title="Bulk Finalize Onboarding"
-        message="You are about to activate as CURRENT employees:"
-        count={selected.length}
-        onConfirm={handleBulkFinalize}
-        onCancel={() => setShowConfirm(false)}
-        loading={processing}
-        actionLabel="Finalize All"
-        color="green"
-      />
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// WORKFLOW GUIDE
-// ─────────────────────────────────────────────
-const WorkflowGuide = () => {
-  const steps = [
-    { num: 1, actor: 'Candidate', label: 'Submits BGV Form', desc: 'Portal → personal, education, work history', status: 'BGV_SUBMITTED', color: 'bg-indigo-500' },
-    { num: 2, actor: 'HR', label: 'Bulk Approve BGV', desc: 'One click → creates employee in ONBOARDING', status: 'BGV_APPROVED', color: 'bg-emerald-500' },
-    { num: 3, actor: 'Candidate', label: 'Submits Bank & Emergency Info', desc: 'Portal shows bank form after approval', status: 'ONBOARDING_SUBMITTED', color: 'bg-amber-500' },
-    { num: 4, actor: 'HR', label: 'Bulk Finalize', desc: 'One click → Employee becomes CURRENT', status: 'CURRENT', color: 'bg-green-600' },
-  ];
-
-  return (
-    <div className="bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-100 rounded-xl p-6 mb-8">
-      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-5">Onboarding Workflow</h3>
-      <div className="flex flex-wrap items-center gap-2">
-        {steps.map((step, i) => (
-          <React.Fragment key={step.num}>
-            <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-lg px-4 py-3">
-              <div className={`w-8 h-8 rounded-full ${step.color} text-white text-xs font-bold flex items-center justify-center flex-shrink-0`}>
-                {step.num}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                    step.actor === 'HR' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
-                  }`}>
-                    {step.actor}
-                  </span>
-                </div>
-                <p className="text-xs font-semibold text-gray-800 mt-0.5">{step.label}</p>
-                <p className="text-[10px] text-gray-400">{step.desc}</p>
-              </div>
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans antialiased">
+      {/* Top Navigation */}
+      <nav className="bg-white border-b border-slate-200 px-8 py-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="bg-indigo-600 p-2 rounded-lg">
+              <Zap className="text-white w-5 h-5 fill-current" />
             </div>
-            {i < steps.length - 1 && (
-              <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// MAIN COMPONENT
-// ─────────────────────────────────────────────
-const Onboarding = () => {
-  const navigate = useNavigate();
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const [activeTab, setActiveTab] = useState('bgv-approval');
-  const [stats, setStats] = useState({ pendingApproval: 0, readyToFinalize: 0, total: 0 });
-  const [statsLoading, setStatsLoading] = useState(true);
-
-  const showError = (msg) => {
-    setError(msg);
-    setTimeout(() => setError(null), 6000);
-  };
-
-  const showSuccess = (msg) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(null), 5000);
-  };
-
-  // Fetch stats for overview
-  const fetchStats = async () => {
-    setStatsLoading(true);
-    try {
-      const [pendingRes, finalizeRes] = await Promise.allSettled([
-        api('get', '/hr/bgv/pending-approval'),
-        api('get', '/hr/bgv/ready-to-finalize'),
-      ]);
-
-      const pending = pendingRes.status === 'fulfilled'
-        ? (pendingRes.value.data?.data || pendingRes.value.data || []).length : 0;
-      const finalize = finalizeRes.status === 'fulfilled'
-        ? (finalizeRes.value.data?.data || finalizeRes.value.data || []).length : 0;
-
-      setStats({ pendingApproval: pending, readyToFinalize: finalize, total: pending + finalize });
-    } catch {}
-    setStatsLoading(false);
-  };
-
-  useEffect(() => { fetchStats(); }, []);
-
-  // Re-fetch stats when success message fires (after bulk actions)
-  useEffect(() => {
-    if (success) fetchStats();
-  }, [success]);
-
-  const tabs = [
-    { id: 'bgv-approval', label: 'BGV Approval', icon: Shield, count: stats.pendingApproval },
-    { id: 'onboarding-finalize', label: 'Onboarding Finalize', icon: UserCheck, count: stats.readyToFinalize },
-  ];
-
-  return (
-    <div className="min-h-screen bg-gray-50/50">
-      {/* Top Bar */}
-      <div className="bg-white border-b border-gray-100 px-6 py-4 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-            >
-              <ArrowLeft size={14} />
-              Back
-            </button>
-            <div className="h-4 w-px bg-gray-200" />
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Users size={16} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Onboarding Dashboard</h1>
-                <p className="text-[10px] text-gray-400 uppercase tracking-widest">HR · Background Verification & Employee Activation</p>
-              </div>
-            </div>
+            <span className="text-xl font-bold tracking-tight">OnboardFlow</span>
           </div>
-          <button
-            onClick={fetchStats}
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg transition-all"
+          <button 
+            onClick={() => fetchDashboardData()}
+            className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors"
           >
-            <RefreshCw size={12} className={statsLoading ? 'animate-spin' : ''} />
-            Refresh
+            <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Sync Data
           </button>
         </div>
-      </div>
+      </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-
-        {/* Notifications */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-4"
-            >
-              <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-red-600 flex-1">{error}</p>
-              <button onClick={() => setError(null)}>
-                <X size={14} className="text-red-400 hover:text-red-600" />
-              </button>
-            </motion.div>
-          )}
-          {success && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex items-start gap-3 bg-emerald-50 border border-emerald-100 rounded-xl p-4"
-            >
-              <CheckCircle size={16} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-emerald-700 flex-1">{success}</p>
-              <button onClick={() => setSuccess(null)}>
-                <X size={14} className="text-emerald-400 hover:text-emerald-600" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard
-            label="Pending BGV Approval"
-            value={statsLoading ? '—' : stats.pendingApproval}
-            sub="Candidates who submitted BGV form"
-            color="bg-indigo-500"
-            icon={Shield}
-          />
-          <StatCard
-            label="Ready to Finalize"
-            value={statsLoading ? '—' : stats.readyToFinalize}
-            sub="Employees who submitted bank info"
-            color="bg-green-500"
-            icon={UserCheck}
-          />
-          <StatCard
-            label="Total Pending Actions"
-            value={statsLoading ? '—' : stats.total}
-            sub="Across all onboarding stages"
-            color="bg-purple-500"
-            icon={BarChart3}
-          />
-        </div>
-
-        {/* Workflow Guide */}
-        <WorkflowGuide />
-
-        {/* Tabs */}
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          {/* Tab Bar */}
-          <div className="flex border-b border-gray-100 bg-gray-50/50">
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-widest transition-all relative ${
-                    active
-                      ? 'text-gray-900 bg-white'
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {active && (
-                    <motion.div
-                      layoutId="tab-indicator"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
-                    />
-                  )}
-                  <Icon size={14} />
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                      active ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-500'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Tab Content */}
-          <div className="p-6">
-            <AnimatePresence mode="wait">
-              {activeTab === 'bgv-approval' && (
-                <motion.div
-                  key="bgv-approval"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 10 }}
-                >
-                  <BGVApprovalSection onSuccess={showSuccess} onError={showError} />
-                </motion.div>
-              )}
-              {activeTab === 'onboarding-finalize' && (
-                <motion.div
-                  key="onboarding-finalize"
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                >
-                  <OnboardingFinalizeSection onSuccess={showSuccess} onError={showError} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* API Quick Reference */}
-        <details className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <summary className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer hover:bg-gray-50 flex items-center gap-2">
-            <FileText size={14} />
-            API Reference (Developer)
-          </summary>
-          <div className="px-6 pb-6 pt-2 space-y-3">
+      <main className="max-w-7xl mx-auto px-8 py-10">
+        {/* Progress Stepper Tabs */}
+        <div className="flex items-center justify-center mb-12">
+          <div className="flex items-center w-full max-w-3xl">
             {[
-              { method: 'GET',  url: '/hr/bgv/pending-approval',  desc: 'Fetch candidates with BGV_SUBMITTED status' },
-              { method: 'POST', url: '/hr/bgv/bulk-approve',       desc: 'Approve BGVs → creates employees in ONBOARDING', body: '["bgv_id_1", "bgv_id_2"]' },
-              { method: 'GET',  url: '/hr/bgv/ready-to-finalize',  desc: 'Fetch employees with ONBOARDING_SUBMITTED status' },
-              { method: 'POST', url: '/hr/bgv/bulk-finalize',      desc: 'Finalize onboarding → employee status becomes CURRENT', body: '["EMP-ID-1", "EMP-ID-2"]' },
-            ].map(r => (
-              <div key={r.url} className="flex items-start gap-3 text-xs font-mono bg-gray-50 rounded-lg p-3">
-                <span className={`font-bold flex-shrink-0 ${r.method === 'GET' ? 'text-blue-500' : 'text-green-600'}`}>
-                  {r.method}
-                </span>
-                <div className="flex-1">
-                  <p className="text-gray-600">{r.url}</p>
-                  <p className="text-gray-400 font-sans text-[10px] mt-0.5">{r.desc}</p>
-                  {r.body && <p className="text-gray-500 mt-1 text-[10px]">Body: {r.body}</p>}
-                </div>
-              </div>
+              { id: 'pending', label: 'Approval', icon: Users },
+              { id: 'onboarding', label: 'Submission', icon: CreditCard },
+              { id: 'finalize', label: 'Finalize', icon: CheckCircle },
+            ].map((step, idx) => (
+              <React.Fragment key={step.id}>
+                <button
+                  onClick={() => setActiveTab(step.id)}
+                  className="flex flex-col items-center group relative"
+                >
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border-2 
+                    ${activeTab === step.id ? 'bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-white border-slate-200'}`}>
+                    <step.icon className={`w-5 h-5 ${activeTab === step.id ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <span className={`absolute -bottom-7 text-xs font-bold uppercase tracking-wider whitespace-nowrap
+                    ${activeTab === step.id ? 'text-indigo-600' : 'text-slate-400'}`}>
+                    {step.label}
+                  </span>
+                </button>
+                {idx !== 2 && <div className="flex-1 h-[2px] bg-slate-200 mx-4" />}
+              </React.Fragment>
             ))}
           </div>
-        </details>
+        </div>
 
-      </div>
+        {/* Tab Content: 1. PENDING */}
+        {activeTab === 'pending' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <h2 className="text-lg font-bold">Candidates Pending Approval</h2>
+                <span className="text-sm text-slate-500 font-medium">{pendingList.length} total</span>
+              </div>
+              <div className="overflow-y-auto max-h-[500px]">
+                <table className="w-full">
+                  <thead className="bg-slate-50 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4 text-left">Candidate Name</th>
+                      <th className="px-6 py-4 text-left">Internal ID</th>
+                      <th className="px-6 py-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {pendingList.map(c => (
+                      <tr key={c.id} className="hover:bg-indigo-50/30 transition-colors">
+                        <td className="px-6 py-4 font-semibold text-slate-700">{c.fullName}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-slate-400">{c.id}</td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={() => { setSelectedCandidate(c); setActiveTab('onboarding'); }}
+                            className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-800"
+                          >
+                            Next Step <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {pendingList.length === 0 && <div className="p-20 text-center text-slate-400 italic">No pending candidates.</div>}
+              </div>
+            </div>
+            <div className="bg-indigo-600 rounded-2xl p-8 text-white shadow-xl shadow-indigo-100">
+               <h3 className="text-xl font-bold mb-4">Quick Guide</h3>
+               <p className="text-indigo-100 text-sm leading-relaxed">Select a candidate from the left to begin their bank and emergency contact submission. Approved candidates will move to the next phase automatically.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Content: 2. ONBOARDING */}
+        {activeTab === 'onboarding' && (
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+              <div className="bg-slate-900 p-8 text-white">
+                <p className="text-indigo-400 text-xs font-bold uppercase tracking-widest mb-1">Step 4: Submission</p>
+                <h2 className="text-2xl font-bold">
+                  {selectedCandidate ? `Onboarding: ${selectedCandidate.fullName}` : "Select a candidate first"}
+                </h2>
+              </div>
+              
+              <form onSubmit={handleOnboardingSubmit} className="p-8 space-y-8">
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Bank Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input 
+                      className="bg-slate-50 border border-slate-200 rounded-xl p-4 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                      placeholder="Bank Name"
+                      value={bankDetails.bankName}
+                      onChange={(e) => setBankDetails({...bankDetails, bankName: e.target.value})}
+                      required
+                    />
+                    <input 
+                      className="bg-slate-50 border border-slate-200 rounded-xl p-4 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                      placeholder="Account Number"
+                      value={bankDetails.accountNumber}
+                      onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})}
+                      required
+                    />
+                    <div className="md:col-span-2">
+                      <input 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        placeholder="IFSC Code"
+                        value={bankDetails.ifscCode}
+                        onChange={(e) => setBankDetails({...bankDetails, ifscCode: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Emergency Contacts</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input 
+                      className="bg-slate-50 border border-slate-200 rounded-xl p-4 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                      placeholder="Contact Name"
+                      value={bankDetails.emergencyContactName}
+                      onChange={(e) => setBankDetails({...bankDetails, emergencyContactName: e.target.value})}
+                      required
+                    />
+                    <input 
+                      className="bg-slate-50 border border-slate-200 rounded-xl p-4 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                      placeholder="Contact Number"
+                      value={bankDetails.emergencyContactNumber}
+                      onChange={(e) => setBankDetails({...bankDetails, emergencyContactNumber: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={loading || !selectedCandidate}
+                  className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:bg-slate-200 disabled:shadow-none"
+                >
+                  {loading ? "Processing..." : "Complete Submission"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Content: 3. FINALIZE */}
+        {activeTab === 'finalize' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-end">
+              <div>
+                <h2 className="text-2xl font-bold">Finalize Activation</h2>
+                <p className="text-slate-500">Ready to merge profiles and activate employee accounts</p>
+              </div>
+              <button 
+                onClick={handleBulkFinalize}
+                disabled={loading || readyList.length === 0}
+                className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-all flex items-center gap-2 disabled:bg-slate-200"
+              >
+                Execute Bulk Finalize ({readyList.length})
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left">ID</th>
+                    <th className="px-6 py-4 text-left">Full Name</th>
+                    <th className="px-6 py-4 text-left">Status</th>
+                    <th className="px-6 py-4 text-right">Data Health</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {readyList.map(e => (
+                    <tr key={e.id}>
+                      <td className="px-6 py-4 font-mono text-xs text-slate-400">{e.id}</td>
+                      <td className="px-6 py-4 font-semibold">{e.fullName}</td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center gap-1.5 py-1 px-3 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                          <CheckCircle className="w-3 h-3" /> Ready
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-xs font-bold text-slate-400 italic">Complete</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {readyList.length === 0 && <div className="p-20 text-center text-slate-400">All caught up! No profiles to finalize.</div>}
+            </div>
+          </div>
+        )}
+      </main>
+
+      <footer className="max-w-7xl mx-auto px-8 py-10 mt-10 border-t border-slate-200 flex justify-between items-center text-slate-400 text-xs font-medium">
+        <p>© 2026 HR Operations Portfolio</p>
+        <div className="flex gap-4">
+          <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Console Logs Enabled</span>
+        </div>
+      </footer>
     </div>
   );
 };
