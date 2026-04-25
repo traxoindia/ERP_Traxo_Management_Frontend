@@ -75,6 +75,7 @@ const PostJobPage = () => {
       console.log("Jobs API Response:", response.data);
 
       const jobsData = response.data?.data || response.data;
+      console.log(jobsData)
       setJobs(Array.isArray(jobsData) ? jobsData : []);
       
     } catch (err) {

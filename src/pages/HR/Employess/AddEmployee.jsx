@@ -6,12 +6,11 @@ import NewHiresList from './NewHiresList';
 import BackNavbar from '../../Career/BackNavbar';
 
 export default function AddEmployee() {
-  const [activeTab, setActiveTab] = useState('new');
+  const [activeTab, setActiveTab] = useState('current');
   const [refreshKey, setRefreshKey] = useState(0);
 
   const tabs = [
-    { id: 'new', label: '➕ New Hire' },
-    { id: 'new-hires', label: 'New Hires List' },
+   
     { id: 'current', label: ' Current Employees' },
     { id: 'past', label: 'Past Employees' },
   ];
@@ -51,8 +50,6 @@ export default function AddEmployee() {
 
           {/* Content Area */}
           <div className="p-8 min-h-[500px]">
-            {activeTab === 'new' && <NewHireForm key={`new-${refreshKey}`} />}
-            {activeTab === 'new-hires' && <NewHiresList key={`new-hires-${refreshKey}`} />}
             {activeTab === 'current' && <CurrentEmployees key={`current-${refreshKey}`} />}
             {activeTab === 'past' && <PastEmployees key={`past-${refreshKey}`} />}
           </div>

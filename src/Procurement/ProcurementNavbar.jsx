@@ -9,6 +9,7 @@ import {
   PlusCircle 
 } from "lucide-react";
 import CreateRequirementModal from "./CreateRequirementModal";
+import toast, { Toaster } from "react-hot-toast"; 
 
 const ProcurementNavbar = () => {
   const navigate = useNavigate();
@@ -16,7 +17,10 @@ const ProcurementNavbar = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
-    navigate("/login");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("role");
+    navigate("/departments/procurement/login");
+    toast.success("Logged out successfully!");
   };
 
   const linkClasses = ({ isActive }) =>

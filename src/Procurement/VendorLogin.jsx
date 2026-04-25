@@ -1,27 +1,27 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
+import { useNavigate } from 'react-router-dom';
+import { 
+  Mail, 
+  Lock, 
+  Loader2, 
+  ChevronRight, 
+  ShieldCheck, 
+  LayoutDashboard 
+} from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
 function VendorLogin() {
-  const navigate = useNavigate(); // 2. Initialize navigate
-  
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState({ type: '', message: '' });
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setStatus({ type: '', message: '' });
 
     try {
       const response = await fetch('https://python-backend-2-5uar.onrender.com/vendors/vendor-login', {
@@ -33,99 +33,124 @@ function VendorLogin() {
       const data = await response.json();
 
       if (response.ok) {
-        setStatus({ type: 'success', message: 'Login successful! Redirecting...' });
-        
-        // 3. Store the token if available (Backend usually returns access_token)
-        if (data.access_token || data.token) {
-          localStorage.setItem('vendorToken', data.access_token || data.token);
-        }
+        toast.success('Authentication successful!', {
+          style: { borderRadius: '12px', background: '#333', color: '#fff' },
+        });
 
-        // 4. Navigate to dashboard after a short delay
-        setTimeout(() => {
-          navigate('/vendor-dashboard');
-        }, 1500);
+        // Save requested data to localStorage
+        localStorage.setItem('accessToken', data.access_token || data.token);
+        localStorage.setItem('refreshToken', data.refresh_token || '');
+        localStorage.setItem('role', data.role || 'vendor');
 
+        setTimeout(() => navigate('/vendor-dashboard'), 1200);
       } else {
-        setStatus({ type: 'error', message: data.detail || 'Invalid credentials' });
+        toast.error(data.detail || 'Invalid credentials');
       }
     } catch (error) {
-      setStatus({ type: 'error', message: 'Connection to server failed.' });
+      toast.error('Server connection failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg border border-gray-100">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 uppercase tracking-tight">
-            Vendor Portal
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Please sign in to manage your inventory
-          </p>
-        </div>
+    <div className="min-h-screen grid lg:grid-cols-2 bg-white">
+      <Toaster position="top-right" />
+      
+      {/* Left Side: Visual/Branding Section (Hidden on Mobile) */}
+      <div className="hidden lg:flex flex-col justify-between bg-yellow-500 p-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-indigo-600 rounded-full blur-[120px] opacity-20"></div>
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
-              </label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                required
-                className="appearance-none block w-full px-3 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm transition-all"
-                placeholder="vendor@company.com"
-                value={formData.email}
-                onChange={handleChange}
-              />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
+            <div className="bg-indigo-500 p-1.5 rounded-lg">
+               <LayoutDashboard size={24} />
             </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none block w-full px-3 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm transition-all"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </div>
+            <span className="text-indigo-900" >TRAXO <span className="text-indigo-900">VENDORS</span></span>
+          </div>
+        </div>
+
+      
+
+        <div className="relative z-10 flex items-center gap-4 text-slate-500 text-sm">
+          <div className="flex items-center gap-1">
+            <ShieldCheck size={16} /> Secure Portal
+          </div>
+          <span>•</span>
+          <span>© 2026 Wemis Inc.</span>
+        </div>
+      </div>
+
+      {/* Right Side: Login Form */}
+      <div className="flex items-center justify-center p-8 lg:p-16">
+        <div className="w-full max-w-[400px] space-y-8">
+          <div className="space-y-2">
+            <h2 className="text-3xl font-bold text-slate-900">Sign in</h2>
+            <p className="text-slate-500">Enter your vendor credentials to continue</p>
           </div>
 
-          {status.message && (
-            <div className={`text-sm text-center p-3 rounded-lg font-medium animate-pulse ${
-              status.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {status.message}
-            </div>
-          )}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              {/* Email */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-slate-700 ml-1">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    onChange={handleChange}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none text-slate-900"
+                    placeholder="vendor@company.com"
+                  />
+                </div>
+              </div>
 
-          <div>
+              {/* Password */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-sm font-semibold text-slate-700">Password</label>
+                  <button type="button" className="text-xs font-bold text-indigo-600 hover:text-indigo-500 transition-colors">
+                    Forgot password?
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    name="password"
+                    type="password"
+                    required
+                    onChange={handleChange}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none text-slate-900"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
-              className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white shadow-sm transition-all ${
-                loading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 active:transform active:scale-95'
-              }`}
+              className="w-full group relative flex items-center justify-center gap-2 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {loading ? (
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : 'Sign in'}
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <>
+                  Sign in to Portal
+                  <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </button>
-          </div>
-        </form>
+          </form>
+
+          <p className="text-center text-sm text-slate-500 pt-4">
+            Don't have an account?{' '}
+            <button className="font-bold text-indigo-600 hover:underline">Get started</button>
+          </p>
+        </div>
       </div>
     </div>
   );

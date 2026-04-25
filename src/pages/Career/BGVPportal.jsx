@@ -1,11 +1,14 @@
+
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import toast, { Toaster } from 'react-hot-toast';
 
 const BGVPortal = () => {
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // Initialize state with the exact structure of your JSON schema
+  // Text Data State
   const [formData, setFormData] = useState({
     fullName: "",
     dob: "",
@@ -21,26 +24,40 @@ const BGVPortal = () => {
     references: [{ name: "", company: "", contact: "" }]
   });
 
-  // Extract token from URL on mount
+  // Files State
+  const [files, setFiles] = useState({
+    aadharCard: null,
+    panCard: null,
+    photo: null,
+    marksheet10: null,
+    marksheet12: null,
+    degree: null
+  });
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     setToken(urlParams.get('token') || "DEMO_TOKEN_123");
   }, []);
 
-  // Handle standard input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Generic handler for nested array fields (Education, Employment, References)
+  const handleFileChange = (e) => {
+    const { name, files: selectedFiles } = e.target;
+    if (selectedFiles[0]) {
+      setFiles(prev => ({ ...prev, [name]: selectedFiles[0] }));
+      toast.success(`${name} attached`);
+    }
+  };
+
   const handleNestedChange = (index, field, value, section) => {
     const updatedSection = [...formData[section]];
     updatedSection[index][field] = value;
     setFormData(prev => ({ ...prev, [section]: updatedSection }));
   };
 
-  // Generic helper to add new rows to arrays
   const addRow = (section, template) => {
     setFormData(prev => ({ ...prev, [section]: [...prev[section], template] }));
   };
@@ -48,100 +65,205 @@ const BGVPortal = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Log the data to console as requested
-    console.log("Submitting Payload:", formData);
+
+    const submissionData = new FormData();
+
+    // 1. Create the JSON Blob for the "data" part
+    const jsonBlob = new Blob([JSON.stringify(formData)], { type: 'application/json' });
+    submissionData.append('data', jsonBlob);
+
+    // 2. Append individual files
+    Object.keys(files).forEach(key => {
+      if (files[key]) {
+        submissionData.append(key, files[key]);
+      }
+    });
+
+    console.log("Payload being sent:", formData);
 
     try {
       const response = await axios.post(
         `https://api.wemis.in/api/public/bgv/submit-verification?token=${token}`, 
-        formData
+        submissionData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
       );
-      console.log("Server Response:", response.data);
-      alert("Success! Data submitted and logged to console.");
+      console.log("Success:", response.data);
+      toast.success("All data and documents submitted successfully!");
     } catch (err) {
-      console.error("Submission Error:", err);
-      alert("Error: " + (err.response?.data?.message || "Check console for details"));
+      console.error("Error:", err);
+      toast.error(err.response?.data?.message || "Submission failed. Please check all fields.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Common input style
-  const inputStyle = { display: 'block', width: '100%', marginBottom: '10px', padding: '8px' };
+  // UI Styles
+  const cardStyle = "bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8";
+  const labelStyle = "block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5";
+  const inputStyle = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all text-sm";
 
   return (
-    <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
-      <h1 style={{ textAlign: 'center', color: '#333' }}>Background Verification Portal</h1>
-      <form onSubmit={handleSubmit} style={{ backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '8px' }}>
-        
-        {/* SECTION 1: Personal Information */}
-        <fieldset style={{ border: '1px solid #ddd', padding: '15px', marginBottom: '20px' }}>
-          <legend style={{ fontWeight: 'bold' }}>Personal Information</legend>
-          <input style={inputStyle} type="text" name="fullName" placeholder="Full Name" onChange={handleChange} required />
-          <input style={inputStyle} type="date" name="dob" onChange={handleChange} required />
-          <input style={inputStyle} type="text" name="contactNumber" placeholder="Contact Number" onChange={handleChange} required />
-          <textarea style={inputStyle} name="currentAddress" placeholder="Current Address" onChange={handleChange} rows="2" />
-          <textarea style={inputStyle} name="permanentAddress" placeholder="Permanent Address" onChange={handleChange} rows="2" />
-          <input style={inputStyle} type="text" name="aadharNumber" placeholder="Aadhar Number" onChange={handleChange} />
-          <input style={inputStyle} type="text" name="panNumber" placeholder="PAN Number" onChange={handleChange} />
-          <input style={inputStyle} type="text" name="lastDrawnSalary" placeholder="Last Drawn Salary" onChange={handleChange} />
-          <select style={inputStyle} name="criminalRecordDeclaration" onChange={handleChange}>
-             <option value="">Any Criminal Records?</option>
-             <option value="No">No</option>
-             <option value="Yes">Yes</option>
-          </select>
-        </fieldset>
+    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6">
+      <Toaster position="top-center" />
+      
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-10 text-center">
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">VERIFICATION PORTAL</h1>
+          <p className="text-slate-500 mt-2">Please provide your details and upload required documents</p>
+        </div>
 
-        {/* SECTION 2: Education Details */}
-        <fieldset style={{ border: '1px solid #ddd', padding: '15px', marginBottom: '20px' }}>
-          <legend style={{ fontWeight: 'bold' }}>Education Details</legend>
-          {formData.educationDetails.map((edu, i) => (
-            <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-              <input placeholder="Level" value={edu.level} onChange={(e) => handleNestedChange(i, 'level', e.target.value, 'educationDetails')} />
-              <input placeholder="Institute" value={edu.institute} onChange={(e) => handleNestedChange(i, 'institute', e.target.value, 'educationDetails')} />
-              <input placeholder="Year" value={edu.passingYear} onChange={(e) => handleNestedChange(i, 'passingYear', e.target.value, 'educationDetails')} />
-              <input placeholder="%" value={edu.percentage} onChange={(e) => handleNestedChange(i, 'percentage', e.target.value, 'educationDetails')} />
+        <form onSubmit={handleSubmit}>
+          
+          {/* PERSONAL INFO */}
+          <div className={cardStyle}>
+            <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <span className="w-6 h-6 bg-blue-600 text-white rounded flex items-center justify-center text-[10px]">01</span>
+              Personal Details
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className={labelStyle}>Full Name</label>
+                <input className={inputStyle} type="text" name="fullName" placeholder="As per Aadhaar" onChange={handleChange} required />
+              </div>
+              <div>
+                <label className={labelStyle}>Date of Birth</label>
+                <input className={inputStyle} type="date" name="dob" onChange={handleChange} required />
+              </div>
+              <div>
+                <label className={labelStyle}>Contact Number</label>
+                <input className={inputStyle} type="text" name="contactNumber" placeholder="+91" onChange={handleChange} required />
+              </div>
+              <div>
+                <label className={labelStyle}>Aadhar Number</label>
+                <input className={inputStyle} type="text" name="aadharNumber" placeholder="XXXX XXXX XXXX" onChange={handleChange} />
+              </div>
+              <div>
+                <label className={labelStyle}>PAN Number</label>
+                <input className={inputStyle} type="text" name="panNumber" placeholder="ABCDE1234F" onChange={handleChange} />
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelStyle}>Current Address</label>
+                <textarea className={inputStyle} name="currentAddress" rows="2" onChange={handleChange} />
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelStyle}>Permanent Address</label>
+                <textarea className={inputStyle} name="permanentAddress" rows="2" onChange={handleChange} />
+              </div>
+              <div>
+                <label className={labelStyle}>Last Drawn Salary (Annual)</label>
+                <input className={inputStyle} type="text" name="lastDrawnSalary" onChange={handleChange} />
+              </div>
+              <div>
+                <label className={labelStyle}>Criminal Record Declaration</label>
+                <select className={inputStyle} name="criminalRecordDeclaration" onChange={handleChange}>
+                  <option value="">Select Option</option>
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </div>
             </div>
-          ))}
-          <button type="button" onClick={() => addRow('educationDetails', { level: "", institute: "", passingYear: "", percentage: "" })}>+ Add Row</button>
-        </fieldset>
+          </div>
 
-        {/* SECTION 3: Employment History */}
-        <fieldset style={{ border: '1px solid #ddd', padding: '15px', marginBottom: '20px' }}>
-          <legend style={{ fontWeight: 'bold' }}>Employment History</legend>
-          {formData.employmentHistory.map((emp, i) => (
-            <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-              <input placeholder="Company" value={emp.company} onChange={(e) => handleNestedChange(i, 'company', e.target.value, 'employmentHistory')} />
-              <input placeholder="Designation" value={emp.designation} onChange={(e) => handleNestedChange(i, 'designation', e.target.value, 'employmentHistory')} />
-              <input placeholder="Duration" value={emp.duration} onChange={(e) => handleNestedChange(i, 'duration', e.target.value, 'employmentHistory')} />
-              <input placeholder="HR Contact" value={emp.hrContact} onChange={(e) => handleNestedChange(i, 'hrContact', e.target.value, 'employmentHistory')} />
+          {/* DOCUMENT UPLOADS */}
+          <div className={cardStyle}>
+            <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <span className="w-6 h-6 bg-blue-600 text-white rounded flex items-center justify-center text-[10px]">02</span>
+              Required Documents
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {[
+                { label: "Aadhar Card *", name: "aadharCard" },
+                { label: "PAN Card *", name: "panCard" },
+                { label: "Passport Photo *", name: "photo" },
+                { label: "10th Marksheet", name: "marksheet10" },
+                { label: "12th Marksheet", name: "marksheet12" },
+                { label: "Highest Degree", name: "degree" },
+              ].map((file) => (
+                <div key={file.name} className={`relative p-4 border-2 border-dashed rounded-xl text-center transition-all ${files[file.name] ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
+                  <label className="cursor-pointer block">
+                    <span className="block text-xs font-bold text-slate-700 mb-2">{file.label}</span>
+                    <div className="flex flex-col items-center gap-1">
+                      <svg className={`w-6 h-6 ${files[file.name] ? 'text-emerald-500' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <span className="text-[10px] text-slate-500 font-medium truncate w-full">
+                        {files[file.name] ? files[file.name].name : "Choose File"}
+                      </span>
+                    </div>
+                    <input type="file" name={file.name} className="hidden" onChange={handleFileChange} />
+                  </label>
+                </div>
+              ))}
             </div>
-          ))}
-          <button type="button" onClick={() => addRow('employmentHistory', { company: "", designation: "", duration: "", hrContact: "" })}>+ Add Row</button>
-        </fieldset>
+          </div>
 
-        {/* SECTION 4: References */}
-        <fieldset style={{ border: '1px solid #ddd', padding: '15px', marginBottom: '20px' }}>
-          <legend style={{ fontWeight: 'bold' }}>Professional References</legend>
-          {formData.references.map((ref, i) => (
-            <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-              <input placeholder="Referee Name" value={ref.name} onChange={(e) => handleNestedChange(i, 'name', e.target.value, 'references')} />
-              <input placeholder="Company" value={ref.company} onChange={(e) => handleNestedChange(i, 'company', e.target.value, 'references')} />
-              <input placeholder="Contact/Email" value={ref.contact} onChange={(e) => handleNestedChange(i, 'contact', e.target.value, 'references')} />
+          {/* EDUCATION DETAILS */}
+          <div className={cardStyle}>
+            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="w-6 h-6 bg-blue-600 text-white rounded flex items-center justify-center text-[10px]">03</span>
+              Education History
+            </h2>
+            <div className="space-y-4">
+              {formData.educationDetails.map((edu, i) => (
+                <div key={i} className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <input className={inputStyle} placeholder="Level" value={edu.level} onChange={(e) => handleNestedChange(i, 'level', e.target.value, 'educationDetails')} />
+                  <input className={inputStyle} placeholder="Institute" value={edu.institute} onChange={(e) => handleNestedChange(i, 'institute', e.target.value, 'educationDetails')} />
+                  <input className={inputStyle} placeholder="Year" value={edu.passingYear} onChange={(e) => handleNestedChange(i, 'passingYear', e.target.value, 'educationDetails')} />
+                  <input className={inputStyle} placeholder="%" value={edu.percentage} onChange={(e) => handleNestedChange(i, 'percentage', e.target.value, 'educationDetails')} />
+                </div>
+              ))}
             </div>
-          ))}
-          <button type="button" onClick={() => addRow('references', { name: "", company: "", contact: "" })}>+ Add Reference</button>
-        </fieldset>
+            <button type="button" className="mt-3 text-blue-600 text-xs font-bold hover:underline" onClick={() => addRow('educationDetails', { level: "", institute: "", passingYear: "", percentage: "" })}>+ ADD EDUCATION</button>
+          </div>
 
-        <button 
-          type="submit" 
-          disabled={loading} 
-          style={{ width: '100%', padding: '15px', backgroundColor: loading ? '#ccc' : '#28a745', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '16px' }}
-        >
-          {loading ? "Submitting..." : "Submit Verification Data"}
-        </button>
-      </form>
+          {/* EMPLOYMENT HISTORY */}
+          <div className={cardStyle}>
+            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="w-6 h-6 bg-blue-600 text-white rounded flex items-center justify-center text-[10px]">04</span>
+              Employment History
+            </h2>
+            <div className="space-y-4">
+              {formData.employmentHistory.map((emp, i) => (
+                <div key={i} className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <input className={inputStyle} placeholder="Company" value={emp.company} onChange={(e) => handleNestedChange(i, 'company', e.target.value, 'employmentHistory')} />
+                  <input className={inputStyle} placeholder="Designation" value={emp.designation} onChange={(e) => handleNestedChange(i, 'designation', e.target.value, 'employmentHistory')} />
+                  <input className={inputStyle} placeholder="Duration" value={emp.duration} onChange={(e) => handleNestedChange(i, 'duration', e.target.value, 'employmentHistory')} />
+                  <input className={inputStyle} placeholder="HR Contact" value={emp.hrContact} onChange={(e) => handleNestedChange(i, 'hrContact', e.target.value, 'employmentHistory')} />
+                </div>
+              ))}
+            </div>
+            <button type="button" className="mt-3 text-blue-600 text-xs font-bold hover:underline" onClick={() => addRow('employmentHistory', { company: "", designation: "", duration: "", hrContact: "" })}>+ ADD EMPLOYMENT</button>
+          </div>
+
+          {/* REFERENCES */}
+          <div className={cardStyle}>
+            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="w-6 h-6 bg-blue-600 text-white rounded flex items-center justify-center text-[10px]">05</span>
+              Professional References
+            </h2>
+            <div className="space-y-4">
+              {formData.references.map((ref, i) => (
+                <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <input className={inputStyle} placeholder="Name" value={ref.name} onChange={(e) => handleNestedChange(i, 'name', e.target.value, 'references')} />
+                  <input className={inputStyle} placeholder="Company" value={ref.company} onChange={(e) => handleNestedChange(i, 'company', e.target.value, 'references')} />
+                  <input className={inputStyle} placeholder="Contact" value={ref.contact} onChange={(e) => handleNestedChange(i, 'contact', e.target.value, 'references')} />
+                </div>
+              ))}
+            </div>
+            <button type="button" className="mt-3 text-blue-600 text-xs font-bold hover:underline" onClick={() => addRow('references', { name: "", company: "", contact: "" })}>+ ADD REFERENCE</button>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className={`w-full py-5 rounded-2xl text-white font-bold text-lg shadow-xl transition-all ${
+              loading ? "bg-slate-400 cursor-wait" : "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
+            }`}
+          >
+            {loading ? "Submitting Application..." : "Finalize & Submit Details"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
