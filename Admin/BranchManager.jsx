@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 // --- API CONFIGURATION ---
-const API_BASE_URL = 'https://python-backend-2-5uar.onrender.com';
+const API_BASE_URL = 'https://api.traxoerp.com';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('accessToken');

@@ -43,7 +43,7 @@ const AdminForgotPassword = () => {
 
     try {
       const res = await axios.post(
-        'https://python-backend-2-5uar.onrender.com/auth/forgot-password',
+        'https://api.traxoerp.com/auth/forgot-password',
         { email }
       );
 
@@ -72,7 +72,7 @@ const AdminForgotPassword = () => {
 
     try {
       await axios.post(
-        'https://python-backend-2-5uar.onrender.com/auth/reset-password',
+        'https://api.traxoerp.com/auth/reset-password',
         {
           token: savedToken,
           new_password: newPassword

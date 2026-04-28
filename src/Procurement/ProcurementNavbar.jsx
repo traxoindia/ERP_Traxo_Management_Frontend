@@ -21,6 +21,7 @@ const ProcurementNavbar = () => {
     localStorage.removeItem("role");
     navigate("/departments/procurement/login");
     toast.success("Logged out successfully!");
+    
   };
 
   const linkClasses = ({ isActive }) =>
@@ -55,11 +56,11 @@ const ProcurementNavbar = () => {
                 <LayoutDashboard size={18} />
                 Dashboard
               </NavLink>
-
+{/* 
               <NavLink to="/Vendors" className={linkClasses}>
                 <FileCheck size={18} />
                 Vendors
-              </NavLink>
+              </NavLink> */}
 
               <NavLink to="/reports" className={linkClasses}>
                 <BarChart3 size={18} />

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, Briefcase } from "lucide-react";
+import { Menu, X, Briefcase, VenusAndMarsIcon } from "lucide-react";
 import logo from "../../images/logo.png";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -22,6 +22,13 @@ const MainNavbar = () => {
 
           {/* Desktop Navigation - Only Careers & Contact */}
           <div className="hidden md:flex items-center space-x-10 h-full">
+          <Link
+              to="/Vendors"
+              className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 font-semibold text-[13px] uppercase tracking-wider transition-colors"
+            >
+              <VenusAndMarsIcon size={16} />
+              <span>Vendors</span>
+            </Link>
             <Link
               to="/careers"
               className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 font-semibold text-[13px] uppercase tracking-wider transition-colors"

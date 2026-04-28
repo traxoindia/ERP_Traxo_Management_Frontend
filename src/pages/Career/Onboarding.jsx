@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { 
-  CheckCircle, 
-  Users, 
-  CreditCard, 
-  Zap, 
-  RefreshCcw, 
+import {
+  CheckCircle,
+  Users,
+  CreditCard,
+  Zap,
+  RefreshCcw,
   ChevronRight,
   AlertCircle,
   Loader2,
@@ -30,10 +30,10 @@ const Onboarding = () => {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [token, setToken] = useState("");
-  
+
   const [pendingList, setPendingList] = useState([]);
   const [readyList, setReadyList] = useState([]);
-  const [finalizedList, setFinalizedList] = useState([]); 
+  const [finalizedList, setFinalizedList] = useState([]);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState(null); // For viewing details modal
@@ -55,9 +55,9 @@ const Onboarding = () => {
   }, []);
 
   const getHeaders = (t) => ({
-    headers: { 
-        Authorization: `Bearer ${t || token}`, 
-        'Content-Type': 'application/json' 
+    headers: {
+      Authorization: `Bearer ${t || token}`,
+      'Content-Type': 'application/json'
     }
   });
 
@@ -68,10 +68,10 @@ const Onboarding = () => {
         axios.get(`${BASE_URL}/api/hr/bgv/pending-approval`, getHeaders(t)),
         axios.get(`${BASE_URL}/api/hr/bgv/ready-to-finalize`, getHeaders(t))
       ]);
-      
+
       setPendingList(resPending.data || []);
       setReadyList(resReady.data || []);
-      
+
       console.log("%c [DATA FETCHED] Pending Approval:", "color: #16a34a; font-weight: bold", resPending.data);
       console.log("%c [DATA FETCHED] Ready to Finalize:", "color: #2563eb; font-weight: bold", resReady.data);
 
@@ -103,36 +103,37 @@ const Onboarding = () => {
       alert("No candidate selected");
       return;
     }
-    
+
     setLoading(true);
     try {
       const id = selectedCandidate.id || selectedCandidate.applicationId;
-      
+
       const payload = {
         ...bankDetails,
         candidateId: id,
         applicationId: selectedCandidate.applicationId
       };
-      
+
       await axios.post(`${BASE_URL}/api/public/bgv/submit-onboarding/${id}`, payload, getHeaders());
-      
-      setBankDetails({ 
-        bankName: "", 
-        accountNumber: "", 
-        ifscCode: "", 
-        emergencyContactName: "", 
-        emergencyContactNumber: "" 
+
+      setBankDetails({
+        bankName: "",
+        accountNumber: "",
+        ifscCode: "",
+        emergencyContactName: "",
+        emergencyContactNumber: ""
+        
       });
       setSelectedCandidate(null);
       setShowSuccessModal(true);
-      
+
       await fetchDashboardData();
-      
+
       setTimeout(() => {
         setShowSuccessModal(false);
         setActiveTab('finalize');
       }, 2000);
-      
+
     } catch (err) {
       console.error("Onboarding Error:", err);
       alert("Failed to submit onboarding details. " + (err.response?.data?.message || "Please try again."));
@@ -141,6 +142,24 @@ const Onboarding = () => {
     }
   };
 
+  const DocumentRow = ({ label, file }) => {
+    if (!file) return null;
+
+    return (
+      <div className="flex items-center justify-between border p-3 rounded-lg">
+        <span className="text-sm font-medium">{label}</span>
+
+        <a
+          href={`${BASE_URL}/${file}`} // VERY IMPORTANT
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 text-sm underline"
+        >
+          View
+        </a>
+      </div>
+    );
+  };
   const handleBulkFinalize = async () => {
     const validRecords = readyList.filter(emp => !emp.employeeId?.includes("ERROR"));
     const ids = validRecords.map(emp => emp.employeeId || emp.employeeId);
@@ -154,15 +173,15 @@ const Onboarding = () => {
     setLoading(true);
     try {
       const response = await axios.post(`${BASE_URL}/api/hr/bgv/bulk-finalize`, ids, getHeaders());
-      
+
       console.log("%c [SUCCESS] Finalized Data:", "color: #10b981; font-weight: bold", response.data);
-      
+
       setFinalizedList(prev => [...prev, ...validRecords]);
-      
+
       await fetchDashboardData();
-      
+
       alert(`Successfully finalized ${ids.length} employees.`);
-      setActiveTab('history'); 
+      setActiveTab('history');
     } catch (err) {
       console.error("Finalize Error:", err);
       alert("Failed to finalize. Check console for details.");
@@ -184,7 +203,7 @@ const Onboarding = () => {
               <X className="w-5 h-5" />
             </button>
           </div>
-          
+
           <div className="p-6 space-y-6">
             {/* Personal Information */}
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6">
@@ -202,6 +221,23 @@ const Onboarding = () => {
                 <InfoRow icon={CardIcon} label="Passport Number" value={candidate.passportNumber || 'N/A'} />
               </div>
             </div>
+            {/* Documents */}
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-3">Documents</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <DocumentRow label="10th Marksheet" file={candidate.documentPaths?.["10TH_MARKSHEET"]} />
+                <DocumentRow label="12th Marksheet" file={candidate.documentPaths?.["12TH_MARKSHEET"]} />
+                <DocumentRow label="Aadhar Card" file={candidate.documentPaths?.["AADHAR_CARD"]} />
+                <DocumentRow label="PAN Card" file={candidate.documentPaths?.["PAN_CARD"]} />
+                <DocumentRow label="Passport Photo" file={candidate.documentPaths?.["PASSPORT_PHOTO"]} />
+                <DocumentRow label="Photograph" file={candidate.documentPaths?.["PHOTOGRAPH"]} />
+                <DocumentRow label="Degree Certificate" file={candidate.documentPaths?.["DEGREE_CERTIFICATE"]} />
+                <DocumentRow label="Highest Degree" file={candidate.documentPaths?.["HIGHEST_DEGREE"]} />
+                <DocumentRow label="Bank Passbook / Cheque" file={candidate.documentPaths?.["BANK_PASSBOOK_OR_CHEQUE"]} />
+              </div>
+            </div>
+
 
             {/* Bank Details */}
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6">
@@ -315,7 +351,7 @@ const Onboarding = () => {
           </div>
 
           <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex justify-end">
-            <button 
+            <button
               onClick={() => {
                 onClose();
                 handleApproveAndProceed(candidate);
@@ -359,15 +395,15 @@ const Onboarding = () => {
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans antialiased">
       {showSuccessModal && <SuccessModal />}
       {selectedDetails && <CandidateDetailsModal candidate={selectedDetails} onClose={() => setSelectedDetails(null)} />}
-      
+
       <nav className="bg-white border-b border-slate-200 px-8 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="bg-indigo-600 p-2 rounded-lg"><Zap className="text-white w-5 h-5" /></div>
             <span className="text-xl font-bold tracking-tight">OnboardFlow</span>
           </div>
-          <button 
-            onClick={() => fetchDashboardData()} 
+          <button
+            onClick={() => fetchDashboardData()}
             disabled={loading}
             className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
           >
@@ -386,8 +422,8 @@ const Onboarding = () => {
               { id: 'history', label: 'History', icon: History, count: finalizedList.length },
             ].map((step, idx) => (
               <React.Fragment key={step.id}>
-                <div 
-                  className="flex flex-col items-center group relative cursor-pointer" 
+                <div
+                  className="flex flex-col items-center group relative cursor-pointer"
                   onClick={() => step.id !== 'onboarding' && setActiveTab(step.id)}
                 >
                   <div className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all border-2 
@@ -458,20 +494,20 @@ const Onboarding = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button 
+                          <button
                             onClick={() => setSelectedDetails(c)}
                             className="text-blue-600 font-medium flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
                           >
                             <Eye size={16} /> View Details
                           </button>
-                          <button 
-                            onClick={() => handleApproveAndProceed(c)} 
+                          <button
+                            onClick={() => handleApproveAndProceed(c)}
                             disabled={actionLoading === (c.id || c.applicationId)}
                             className="text-indigo-600 font-bold flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
                           >
-                            {actionLoading === (c.id || c.applicationId) ? 
-                              <Loader2 className="animate-spin w-4 h-4"/> : 
-                              <>Approve <ChevronRight size={16}/></>
+                            {actionLoading === (c.id || c.applicationId) ?
+                              <Loader2 className="animate-spin w-4 h-4" /> :
+                              <>Approve <ChevronRight size={16} /></>
                             }
                           </button>
                         </div>
@@ -493,44 +529,44 @@ const Onboarding = () => {
                   Entering details for: <span className="font-semibold text-indigo-600">{selectedCandidate?.fullName}</span>
                 </p>
               </div>
-              
+
               <form onSubmit={handleOnboardingSubmit} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Bank Name</label>
-                  <input 
-                    className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" 
-                    placeholder="e.g., State Bank of India" 
-                    required 
+                  <input
+                    className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                    placeholder="e.g., State Bank of India"
+                    required
                     value={bankDetails.bankName}
-                    onChange={(e) => setBankDetails({...bankDetails, bankName: e.target.value})}
+                    onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Account Number</label>
-                  <input 
-                    className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" 
-                    placeholder="Account Number" 
-                    required 
+                  <input
+                    className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                    placeholder="Account Number"
+                    required
                     value={bankDetails.accountNumber}
-                    onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})}
+                    onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">IFSC Code</label>
-                  <input 
-                    className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all uppercase" 
-                    placeholder="IFSC Code" 
-                    required 
+                  <input
+                    className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all uppercase"
+                    placeholder="IFSC Code"
+                    required
                     value={bankDetails.ifscCode}
-                    onChange={(e) => setBankDetails({...bankDetails, ifscCode: e.target.value.toUpperCase()})}
+                    onChange={(e) => setBankDetails({ ...bankDetails, ifscCode: e.target.value.toUpperCase() })}
                   />
                 </div>
 
                 <div className="pt-4 flex gap-3">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => {
                       setSelectedCandidate(null);
                       setActiveTab('pending');
@@ -539,8 +575,8 @@ const Onboarding = () => {
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={loading}
                     className="flex-1 bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
@@ -560,16 +596,16 @@ const Onboarding = () => {
                 <h2 className="text-2xl font-bold">Pending Activation</h2>
                 <p className="text-slate-500 text-sm">{readyList.length} candidate(s) ready for finalization</p>
               </div>
-              <button 
-                onClick={handleBulkFinalize} 
-                disabled={readyList.length === 0 || loading} 
+              <button
+                onClick={handleBulkFinalize}
+                disabled={readyList.length === 0 || loading}
                 className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold disabled:bg-slate-200 disabled:cursor-not-allowed flex items-center gap-2 hover:bg-slate-800 transition-colors"
               >
-                {loading && <Loader2 className="animate-spin w-4 h-4" />} 
+                {loading && <Loader2 className="animate-spin w-4 h-4" />}
                 Execute Bulk Finalize
               </button>
             </div>
-            
+
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
               {readyList.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
@@ -596,8 +632,8 @@ const Onboarding = () => {
                           <code className="text-xs bg-slate-100 px-2 py-1 rounded">{e.applicationId}</code>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          {e.employeeId?.includes("ERROR") ? 
-                            <span className="text-red-500 text-[10px] font-bold bg-red-50 px-2 py-1 rounded">MISSING RECORD</span> : 
+                          {e.employeeId?.includes("ERROR") ?
+                            <span className="text-red-500 text-[10px] font-bold bg-red-50 px-2 py-1 rounded">MISSING RECORD</span> :
                             <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-1 rounded">READY FOR ACTIVATION</span>
                           }
                         </td>
@@ -616,7 +652,7 @@ const Onboarding = () => {
               <History size={20} />
               <h2 className="text-2xl font-bold">Recently Finalized Records</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {finalizedList.length > 0 ? finalizedList.map((emp, idx) => (
                 <div key={emp.id || emp.applicationId || idx} className="bg-white p-6 rounded-2xl border-2 border-emerald-100 shadow-sm relative overflow-hidden hover:shadow-md transition-shadow">

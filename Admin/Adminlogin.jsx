@@ -27,7 +27,7 @@ const AdminLogin = () => {
     e.preventDefault();
     setLoading(true);
 
-    const API_URL = 'https://python-backend-2-5uar.onrender.com/auth/login';
+    const API_URL = 'https://api.traxoerp.com/auth/login';
 
     try {
       const res = await axios.post(API_URL, { email, password });

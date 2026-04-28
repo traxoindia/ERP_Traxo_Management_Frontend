@@ -16,7 +16,7 @@ const AdminRegister = () => {
     e.preventDefault();
     setLoading(true);
 
-    const API_URL = 'https://python-backend-2-5uar.onrender.com/auth/register';
+    const API_URL = 'https://api.traxoerp.com/auth/register';
 
     try {
       const res = await axios.post(API_URL, formData);

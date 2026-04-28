@@ -299,7 +299,9 @@ const BGVPortal = () => {
     photo: null,
     marksheet10: null,
     marksheet12: null,
-    degree: null
+    degree: null,
+    bankDoc: null
+
   });
 
   useEffect(() => {
@@ -337,7 +339,7 @@ const BGVPortal = () => {
     const submissionData = new FormData();
 
     // 1. Separate Text Data from Files
-    const fileKeys = ["aadharCard", "panCard", "photo", "marksheet10", "marksheet12", "degree"];
+    const fileKeys = ["aadharCard", "panCard", "photo", "marksheet10", "marksheet12", "degree", "bankDoc"];
     
     const textData = Object.keys(formData).reduce((acc, key) => {
       if (!fileKeys.includes(key)) {
@@ -445,12 +447,13 @@ const BGVPortal = () => {
             <h2 className="text-lg font-black text-slate-800 mb-6 uppercase tracking-tight italic border-b pb-2 border-slate-100">02. Documents</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {[
-                { label: "Aadhar Card (Req)", key: "aadharCard" },
-                { label: "PAN Card (Req)", key: "panCard" },
-                { label: "Passport Photo (Req)", key: "photo" },
+                { label: "Aadhar Card (Req format .pdf)", key: "aadharCard" },
+                { label: "PAN Card (Req format .pdf)", key: "panCard" },
+                { label: "Passport Photo (Req format jpg,png,jpeg)", key: "photo" },
                 { label: "10th Marksheet", key: "marksheet10" },
                 { label: "12th Marksheet", key: "marksheet12" },
-                { label: "Highest Degree", key: "degree" }
+                { label: "Highest Degree", key: "degree" },
+                { label: "Bank Frontpage", key: "bankDoc" }
               ].map((doc) => (
                 <div key={doc.key} className={`p-4 border-2 border-dashed rounded-2xl transition-all ${formData[doc.key] ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-200 bg-slate-50'}`}>
                   <label className="cursor-pointer block text-center">

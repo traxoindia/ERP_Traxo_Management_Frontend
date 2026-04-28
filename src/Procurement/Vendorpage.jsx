@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   AlertCircle 
 } from "lucide-react";
-import ProcurementNavbar from "./ProcurementNavbar";
 
 /**
  * FIXED: FormInput is defined OUTSIDE the main component.
@@ -118,7 +117,7 @@ function Vendorpage() {
 
   return (
     <>
-        <ProcurementNavbar/>
+      
         <div className="min-h-screen bg-[#f8fafc] py-12 px-4">
       <div className="max-w-4xl mx-auto">
         

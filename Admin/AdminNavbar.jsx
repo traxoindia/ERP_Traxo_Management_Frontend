@@ -11,7 +11,7 @@ import {
 import toast, { Toaster } from 'react-hot-toast';
 
 // --- API CONFIGURATION ---
-const API_BASE_URL = 'https://python-backend-2-5uar.onrender.com';
+const API_BASE_URL = 'https://api.traxoerp.com';
 
 const getAuthHeaders = () => ({
   headers: {

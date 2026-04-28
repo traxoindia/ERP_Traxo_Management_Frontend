@@ -7,7 +7,7 @@ const AdminVendorApprove = () => {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('PENDING'); // Default filter
 
-  const BASE_URL = 'https://python-backend-2-5uar.onrender.com';
+  const BASE_URL = 'https://api.traxoerp.com';
 
   const getAuthHeader = () => {
     const token = localStorage.getItem('accessToken');
