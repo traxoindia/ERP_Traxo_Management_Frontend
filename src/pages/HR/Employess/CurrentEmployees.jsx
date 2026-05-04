@@ -26,6 +26,7 @@ export default function CurrentEmployees() {
       }
       
       const data = await response.json();
+      console.log(data)
       setEmployees(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Fetch error:", error);

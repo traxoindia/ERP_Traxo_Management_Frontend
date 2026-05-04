@@ -24,7 +24,7 @@ function VendorLogin() {
     setLoading(true);
 
     try {
-      const response = await fetch('https://python-backend-2-5uar.onrender.com/vendors/vendor-login', {
+      const response = await fetch('https://api.traxoerp.com/vendors/vendor-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

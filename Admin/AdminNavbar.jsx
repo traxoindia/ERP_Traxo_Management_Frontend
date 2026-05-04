@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Bell, Search, UserCircle, Plus, X, Building2, Globe, Mail, Phone, 
-  MapPin, Briefcase, Users, CreditCard, Hash, ShieldCheck, Landmark, 
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Bell, Search, UserCircle, Plus, X, Building2, Globe, Mail, Phone,
+  MapPin, Briefcase, Users, CreditCard, Hash, ShieldCheck, Landmark,
   Loader2, LogOut, ChevronDown, User, Calendar, Layers, Trash2,
   Home, Menu, ChevronLeft, TrendingUp, Clock, Settings, HelpCircle,
   AlertCircle,
@@ -39,9 +39,8 @@ const InputField = ({ icon: Icon, section, field, placeholder, formData, handleI
       placeholder={placeholder}
       value={formData[section][field]}
       onChange={(e) => handleInputChange(section, field, e.target.value)}
-      className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all ${
-        error ? 'border-red-500 bg-red-50' : 'border-gray-200'
-      }`}
+      className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all ${error ? 'border-red-500 bg-red-50' : 'border-gray-200'
+        }`}
     />
     {error && (
       <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
@@ -86,13 +85,13 @@ const Button = ({ children, variant = 'primary', size = 'md', icon: Icon, loadin
     ghost: 'hover:bg-gray-100 text-gray-600',
     success: 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white'
   };
-  
+
   const sizes = {
     sm: 'px-3 py-1.5 text-sm',
     md: 'px-4 py-2.5 text-sm',
     lg: 'px-6 py-3 text-base'
   };
-  
+
   return (
     <button
       type={type}
@@ -137,7 +136,7 @@ const useBranches = (companyId) => {
     if (!companyId) { setBranches([]); return; }
     setLoading(true);
     try {
-      const res = await axios.post(`${API_BASE_URL}/branches/get-by-company`, 
+      const res = await axios.post(`${API_BASE_URL}/branches/get-by-company`,
         { company_id: companyId }, getAuthHeaders()
       );
       setBranches(res.data.branches || []);
@@ -184,65 +183,65 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
-  
+
   // Modal states
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [showDeptModal, setShowDeptModal] = useState(false);
-  
+
   // Data states
   const { companies, refetch: refetchCompanies } = useCompanies();
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const { branches, refetch: refetchBranches } = useBranches(selectedCompanyId);
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const { departments, refetch: refetchDepartments } = useDepartments(selectedBranchId);
-  
+
   // Form states
   const [newBranch, setNewBranch] = useState({ name: '', location: '' });
   const [newDepartment, setNewDepartment] = useState({ name: '' });
   const [loading, setLoading] = useState(false);
-  
+
   const [formData, setFormData] = useState({
-    companyInfo: { 
-      companyName: '', 
-      legalName: '', 
-      companyType: '', 
-      industry: '', 
-      yearOfIncorporation: '', 
-      numberOfEmployees: '' 
+    companyInfo: {
+      companyName: '',
+      legalName: '',
+      companyType: '',
+      industry: '',
+      yearOfIncorporation: '',
+      numberOfEmployees: ''
     },
-    address: { 
-      registeredAddress: '', 
-      operationalAddress: '', 
-      city: '', 
-      state: '', 
-      country: '', 
-      pinCode: '' 
+    address: {
+      registeredAddress: '',
+      operationalAddress: '',
+      city: '',
+      state: '',
+      country: '',
+      pinCode: ''
     },
-    contact: { 
-      email: '', 
-      phone: '', 
-      website: '' 
+    contact: {
+      email: '',
+      phone: '',
+      website: ''
     },
-    authorizedPerson: { 
-      fullName: '', 
-      designation: '', 
-      email: '', 
-      phone: '', 
-      idProofNumber: '' 
+    authorizedPerson: {
+      fullName: '',
+      designation: '',
+      email: '',
+      phone: '',
+      idProofNumber: ''
     },
-    bankDetails: { 
-      bankName: '', 
-      accountHolderName: '', 
-      accountNumber: '', 
-      ifscCode: '', 
-      branchName: '' 
+    bankDetails: {
+      bankName: '',
+      accountHolderName: '',
+      accountNumber: '',
+      ifscCode: '',
+      branchName: ''
     },
-    taxInformation: { 
-      pan: '', 
-      gst: '', 
-      cin: '', 
-      tan: '' 
+    taxInformation: {
+      pan: '',
+      gst: '',
+      cin: '',
+      tan: ''
     }
   });
 
@@ -293,7 +292,7 @@ export default function AdminDashboard() {
 
   const validateForm = () => {
     const errors = {};
-    
+
     // Company Info Validation
     if (!formData.companyInfo.companyName) errors.companyName = 'Company name is required';
     if (!formData.companyInfo.legalName) errors.legalName = 'Legal name is required';
@@ -301,14 +300,14 @@ export default function AdminDashboard() {
     if (!formData.companyInfo.industry) errors.industry = 'Industry is required';
     if (!formData.companyInfo.yearOfIncorporation) errors.yearOfIncorporation = 'Year of incorporation is required';
     if (!formData.companyInfo.numberOfEmployees) errors.numberOfEmployees = 'Number of employees is required';
-    
+
     // Address Validation
     if (!formData.address.registeredAddress) errors.registeredAddress = 'Registered address is required';
     if (!formData.address.city) errors.city = 'City is required';
     if (!formData.address.state) errors.state = 'State is required';
     if (!formData.address.country) errors.country = 'Country is required';
     if (!formData.address.pinCode) errors.pinCode = 'PIN code is required';
-    
+
     // Contact Validation
     if (!formData.contact.email) {
       errors.email = 'Email is required';
@@ -316,7 +315,7 @@ export default function AdminDashboard() {
       errors.email = 'Invalid email format';
     }
     if (!formData.contact.phone) errors.phone = 'Phone number is required';
-    
+
     // Authorized Person Validation
     if (!formData.authorizedPerson.fullName) errors.fullName = 'Full name is required';
     if (!formData.authorizedPerson.designation) errors.designation = 'Designation is required';
@@ -327,39 +326,39 @@ export default function AdminDashboard() {
     }
     if (!formData.authorizedPerson.phone) errors.authPhone = 'Phone number is required';
     if (!formData.authorizedPerson.idProofNumber) errors.idProofNumber = 'ID proof number is required';
-    
+
     // Bank Details Validation
     if (!formData.bankDetails.bankName) errors.bankName = 'Bank name is required';
     if (!formData.bankDetails.accountHolderName) errors.accountHolderName = 'Account holder name is required';
     if (!formData.bankDetails.accountNumber) errors.accountNumber = 'Account number is required';
     if (!formData.bankDetails.ifscCode) errors.ifscCode = 'IFSC code is required';
-    
+
     // Tax Information Validation
     if (!formData.taxInformation.pan) errors.pan = 'PAN number is required';
     if (!formData.taxInformation.gst) errors.gst = 'GST number is required';
-    
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleOnboard = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error('Please fill all required fields! ❌');
       return;
     }
-    
+
     setLoading(true);
     const loadingToast = toast.loading('Onboarding company... Please wait');
-    
+
     try {
       await axios.post(`${API_BASE_URL}/company/onboard`, formData, getAuthHeaders());
       toast.dismiss(loadingToast);
       toast.success('Company onboarded successfully! 🎉');
       setShowCompanyModal(false);
       refetchCompanies();
-      
+
       // Reset form
       setFormData({
         companyInfo: { companyName: '', legalName: '', companyType: '', industry: '', yearOfIncorporation: '', numberOfEmployees: '' },
@@ -370,7 +369,7 @@ export default function AdminDashboard() {
         taxInformation: { pan: '', gst: '', cin: '', tan: '' }
       });
       setValidationErrors({});
-      
+
     } catch (err) {
       toast.dismiss(loadingToast);
       const errorMsg = err.response?.data?.detail || 'Onboarding failed. Please try again.';
@@ -402,7 +401,7 @@ export default function AdminDashboard() {
       toast.error('Please fill all branch fields!');
       return;
     }
-    
+
     const loadingToast = toast.loading('Creating branch...');
     try {
       await axios.post(`${API_BASE_URL}/branches/`, {
@@ -431,7 +430,7 @@ export default function AdminDashboard() {
       toast.error('Please enter department name!');
       return;
     }
-    
+
     const loadingToast = toast.loading('Creating department...');
     try {
       await axios.post(`${API_BASE_URL}/departments/create`, {
@@ -451,7 +450,7 @@ export default function AdminDashboard() {
 
   const handleDeleteBranch = async (branchId) => {
     if (!confirm('Are you sure you want to delete this branch?')) return;
-    
+
     const loadingToast = toast.loading('Deleting branch...');
     try {
       await axios.delete(`${API_BASE_URL}/branches/?branch_id=${branchId}`, getAuthHeaders());
@@ -466,7 +465,7 @@ export default function AdminDashboard() {
 
   const handleDeleteDepartment = async (deptId) => {
     if (!confirm('Are you sure you want to delete this department?')) return;
-    
+
     const loadingToast = toast.loading('Deleting department...');
     try {
       await axios.delete(`${API_BASE_URL}/departments/?department_id=${deptId}`, getAuthHeaders());
@@ -556,7 +555,7 @@ export default function AdminDashboard() {
           </div>
         </Card>
 
-       
+
       </div>
     </div>
   );
@@ -770,16 +769,16 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <Toaster 
-        position="top-right" 
-        toastOptions={{ 
-          duration: 4000, 
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
           style: { borderRadius: '12px', fontSize: '14px' },
           success: { iconTheme: { primary: '#10B981', secondary: 'white' } },
           error: { iconTheme: { primary: '#EF4444', secondary: 'white' } }
-        }} 
+        }}
       />
-      
+
       {/* Sidebar */}
       <aside className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 to-gray-800 text-white transition-all duration-300 z-40 ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
         <div className={`h-16 flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-4 border-b border-gray-700`}>
@@ -788,33 +787,32 @@ export default function AdminDashboard() {
             {sidebarCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
           </button>
         </div>
-        
+
         <nav className="p-4 space-y-2">
           {navItems.map(item => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === item.id 
-                  ? 'bg-gradient-to-r from-black to-yellow-500 text-white shadow-lg shadow-blue-500/25' 
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === item.id
+                  ? 'bg-gradient-to-r from-black to-yellow-500 text-white shadow-lg shadow-blue-500/25'
                   : 'text-gray-900 hover:bg-yellow-500'
-              }`}
+                }`}
             >
               <item.icon size={20} />
               {!sidebarCollapsed && <span className="font-medium flex-1 text-left">{item.label}</span>}
             </button>
           ))}
         </nav>
-        
+
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700 space-y-2">
-          
+
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors">
             <LogOut size={20} />
             {!sidebarCollapsed && <span className="font-medium">Logout</span>}
           </button>
         </div>
       </aside>
-      
+
       {/* Main Content */}
       <main className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
         {/* Top Navbar */}
@@ -828,13 +826,17 @@ export default function AdminDashboard() {
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
               />
             </div>
-            
+
             <div className="flex items-center gap-4">
-              <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <Bell size={20} className="text-gray-600" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              
+                <Link
+        to="/admin/vendor-approve"
+        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg 
+        hover:bg-blue-700 transition shadow-sm"
+      >
+        Approve Vendors
+      </Link>
+
+
               <div className="relative">
                 <div onClick={() => setIsProfileOpen(!isProfileOpen)} className="flex items-center gap-3 cursor-pointer group">
                   <div className="text-right">
@@ -846,7 +848,7 @@ export default function AdminDashboard() {
                   </div>
                   <ChevronDown size={16} className={`text-gray-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
                 </div>
-                
+
                 {isProfileOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setIsProfileOpen(false)} />
@@ -868,7 +870,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         </nav>
-        
+
         {/* Page Content */}
         <div className="p-8">
           {activeTab === 'dashboard' && <DashboardView />}
@@ -877,7 +879,7 @@ export default function AdminDashboard() {
           {activeTab === 'departments' && <DepartmentsView />}
         </div>
       </main>
-      
+
       {/* ONBOARDING MODAL - WITH ALL FIELDS REQUIRED */}
       {showCompanyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -901,23 +903,23 @@ export default function AdminDashboard() {
                   <SectionHeader icon={Building2} title="Company Identity *" />
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
-                      <InputField 
-                        icon={Building2} 
-                        section="companyInfo" 
-                        field="companyName" 
-                        placeholder="Brand Name *" 
-                        formData={formData} 
+                      <InputField
+                        icon={Building2}
+                        section="companyInfo"
+                        field="companyName"
+                        placeholder="Brand Name *"
+                        formData={formData}
                         handleInputChange={handleInputChange}
                         error={validationErrors.companyName}
                         required
                       />
                     </div>
-                    <InputField 
-                      icon={ShieldCheck} 
-                      section="companyInfo" 
-                      field="legalName" 
-                      placeholder="Legal Entity Name *" 
-                      formData={formData} 
+                    <InputField
+                      icon={ShieldCheck}
+                      section="companyInfo"
+                      field="legalName"
+                      placeholder="Legal Entity Name *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.legalName}
                       required
@@ -942,23 +944,23 @@ export default function AdminDashboard() {
                       options={industries}
                       required
                     />
-                    <InputField 
-                      icon={Calendar} 
-                      section="companyInfo" 
-                      field="yearOfIncorporation" 
-                      placeholder="Est. Year *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Calendar}
+                      section="companyInfo"
+                      field="yearOfIncorporation"
+                      placeholder="Est. Year *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.yearOfIncorporation}
                       required
                     />
                     <div className="col-span-2">
-                      <InputField 
-                        icon={Users} 
-                        section="companyInfo" 
-                        field="numberOfEmployees" 
-                        placeholder="Headcount *" 
-                        formData={formData} 
+                      <InputField
+                        icon={Users}
+                        section="companyInfo"
+                        field="numberOfEmployees"
+                        placeholder="Headcount *"
+                        formData={formData}
                         handleInputChange={handleInputChange}
                         error={validationErrors.numberOfEmployees}
                         required
@@ -972,43 +974,43 @@ export default function AdminDashboard() {
                   <SectionHeader icon={MapPin} title="Global Presence *" />
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
-                      <InputField 
-                        icon={MapPin} 
-                        section="address" 
-                        field="registeredAddress" 
-                        placeholder="Registered Address *" 
-                        formData={formData} 
+                      <InputField
+                        icon={MapPin}
+                        section="address"
+                        field="registeredAddress"
+                        placeholder="Registered Address *"
+                        formData={formData}
                         handleInputChange={handleInputChange}
                         error={validationErrors.registeredAddress}
                         required
                       />
                     </div>
                     <div className="col-span-2">
-                      <InputField 
-                        icon={MapPin} 
-                        section="address" 
-                        field="operationalAddress" 
-                        placeholder="Operational Address" 
-                        formData={formData} 
+                      <InputField
+                        icon={MapPin}
+                        section="address"
+                        field="operationalAddress"
+                        placeholder="Operational Address"
+                        formData={formData}
                         handleInputChange={handleInputChange}
                       />
                     </div>
-                    <InputField 
-                      icon={MapPin} 
-                      section="address" 
-                      field="city" 
-                      placeholder="City *" 
-                      formData={formData} 
+                    <InputField
+                      icon={MapPin}
+                      section="address"
+                      field="city"
+                      placeholder="City *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.city}
                       required
                     />
-                    <InputField 
-                      icon={MapPin} 
-                      section="address" 
-                      field="state" 
-                      placeholder="State *" 
-                      formData={formData} 
+                    <InputField
+                      icon={MapPin}
+                      section="address"
+                      field="state"
+                      placeholder="State *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.state}
                       required
@@ -1023,12 +1025,12 @@ export default function AdminDashboard() {
                       options={countries}
                       required
                     />
-                    <InputField 
-                      icon={Hash} 
-                      section="address" 
-                      field="pinCode" 
-                      placeholder="PIN Code *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Hash}
+                      section="address"
+                      field="pinCode"
+                      placeholder="PIN Code *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.pinCode}
                       required
@@ -1040,34 +1042,34 @@ export default function AdminDashboard() {
                 <section>
                   <SectionHeader icon={Mail} title="Communication *" />
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField 
-                      icon={Mail} 
-                      section="contact" 
-                      field="email" 
-                      placeholder="Corporate Email *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Mail}
+                      section="contact"
+                      field="email"
+                      placeholder="Corporate Email *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.email}
                       type="email"
                       required
                     />
-                    <InputField 
-                      icon={Phone} 
-                      section="contact" 
-                      field="phone" 
-                      placeholder="Business Phone *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Phone}
+                      section="contact"
+                      field="phone"
+                      placeholder="Business Phone *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.phone}
                       required
                     />
                     <div className="col-span-2">
-                      <InputField 
-                        icon={Globe} 
-                        section="contact" 
-                        field="website" 
-                        placeholder="Website URL" 
-                        formData={formData} 
+                      <InputField
+                        icon={Globe}
+                        section="contact"
+                        field="website"
+                        placeholder="Website URL"
+                        formData={formData}
                         handleInputChange={handleInputChange}
                       />
                     </div>
@@ -1078,54 +1080,54 @@ export default function AdminDashboard() {
                 <section>
                   <SectionHeader icon={UserCircle} title="Authorized Representative *" />
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField 
-                      icon={UserCircle} 
-                      section="authorizedPerson" 
-                      field="fullName" 
-                      placeholder="Full Name *" 
-                      formData={formData} 
+                    <InputField
+                      icon={UserCircle}
+                      section="authorizedPerson"
+                      field="fullName"
+                      placeholder="Full Name *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.fullName}
                       required
                     />
-                    <InputField 
-                      icon={Briefcase} 
-                      section="authorizedPerson" 
-                      field="designation" 
-                      placeholder="Designation *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Briefcase}
+                      section="authorizedPerson"
+                      field="designation"
+                      placeholder="Designation *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.designation}
                       required
                     />
-                    <InputField 
-                      icon={Mail} 
-                      section="authorizedPerson" 
-                      field="email" 
-                      placeholder="Direct Email *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Mail}
+                      section="authorizedPerson"
+                      field="email"
+                      placeholder="Direct Email *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.authEmail}
                       type="email"
                       required
                     />
-                    <InputField 
-                      icon={Phone} 
-                      section="authorizedPerson" 
-                      field="phone" 
-                      placeholder="Mobile Number *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Phone}
+                      section="authorizedPerson"
+                      field="phone"
+                      placeholder="Mobile Number *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.authPhone}
                       required
                     />
                     <div className="col-span-2">
-                      <InputField 
-                        icon={ShieldCheck} 
-                        section="authorizedPerson" 
-                        field="idProofNumber" 
-                        placeholder="ID Proof Number *" 
-                        formData={formData} 
+                      <InputField
+                        icon={ShieldCheck}
+                        section="authorizedPerson"
+                        field="idProofNumber"
+                        placeholder="ID Proof Number *"
+                        formData={formData}
                         handleInputChange={handleInputChange}
                         error={validationErrors.idProofNumber}
                         required
@@ -1138,42 +1140,42 @@ export default function AdminDashboard() {
                 <section>
                   <SectionHeader icon={Landmark} title="Banking Details *" />
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField 
-                      icon={Landmark} 
-                      section="bankDetails" 
-                      field="bankName" 
-                      placeholder="Bank Name *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Landmark}
+                      section="bankDetails"
+                      field="bankName"
+                      placeholder="Bank Name *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.bankName}
                       required
                     />
-                    <InputField 
-                      icon={UserCircle} 
-                      section="bankDetails" 
-                      field="accountHolderName" 
-                      placeholder="Holder Name *" 
-                      formData={formData} 
+                    <InputField
+                      icon={UserCircle}
+                      section="bankDetails"
+                      field="accountHolderName"
+                      placeholder="Holder Name *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.accountHolderName}
                       required
                     />
-                    <InputField 
-                      icon={CreditCard} 
-                      section="bankDetails" 
-                      field="accountNumber" 
-                      placeholder="Account Number *" 
-                      formData={formData} 
+                    <InputField
+                      icon={CreditCard}
+                      section="bankDetails"
+                      field="accountNumber"
+                      placeholder="Account Number *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.accountNumber}
                       required
                     />
-                    <InputField 
-                      icon={Hash} 
-                      section="bankDetails" 
-                      field="ifscCode" 
-                      placeholder="IFSC Code *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Hash}
+                      section="bankDetails"
+                      field="ifscCode"
+                      placeholder="IFSC Code *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.ifscCode}
                       required
@@ -1185,40 +1187,40 @@ export default function AdminDashboard() {
                 <section>
                   <SectionHeader icon={Hash} title="Tax Information *" />
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField 
-                      icon={Hash} 
-                      section="taxInformation" 
-                      field="pan" 
-                      placeholder="PAN *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Hash}
+                      section="taxInformation"
+                      field="pan"
+                      placeholder="PAN *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.pan}
                       required
                     />
-                    <InputField 
-                      icon={Hash} 
-                      section="taxInformation" 
-                      field="gst" 
-                      placeholder="GST *" 
-                      formData={formData} 
+                    <InputField
+                      icon={Hash}
+                      section="taxInformation"
+                      field="gst"
+                      placeholder="GST *"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                       error={validationErrors.gst}
                       required
                     />
-                    <InputField 
-                      icon={Hash} 
-                      section="taxInformation" 
-                      field="cin" 
-                      placeholder="CIN" 
-                      formData={formData} 
+                    <InputField
+                      icon={Hash}
+                      section="taxInformation"
+                      field="cin"
+                      placeholder="CIN"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                     />
-                    <InputField 
-                      icon={Hash} 
-                      section="taxInformation" 
-                      field="tan" 
-                      placeholder="TAN" 
-                      formData={formData} 
+                    <InputField
+                      icon={Hash}
+                      section="taxInformation"
+                      field="tan"
+                      placeholder="TAN"
+                      formData={formData}
                       handleInputChange={handleInputChange}
                     />
                   </div>
@@ -1237,11 +1239,10 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition ${
-                    loading
+                  className={`px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition ${loading
                       ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       : 'bg-black text-white hover:bg-yellow-400 hover:text-black'
-                  }`}
+                    }`}
                 >
                   {loading ? (
                     <>
@@ -1287,8 +1288,8 @@ export default function AdminDashboard() {
                   ))}
                 </select>
               </div>
-              <Input label="Branch Name" icon={MapPin} value={newBranch.name} onChange={e => setNewBranch({...newBranch, name: e.target.value})} required placeholder="e.g., Downtown Office" />
-              <Input label="Location" icon={MapPin} value={newBranch.location} onChange={e => setNewBranch({...newBranch, location: e.target.value})} required placeholder="e.g., New York, NY" />
+              <Input label="Branch Name" icon={MapPin} value={newBranch.name} onChange={e => setNewBranch({ ...newBranch, name: e.target.value })} required placeholder="e.g., Downtown Office" />
+              <Input label="Location" icon={MapPin} value={newBranch.location} onChange={e => setNewBranch({ ...newBranch, location: e.target.value })} required placeholder="e.g., New York, NY" />
               <div className="flex gap-3 pt-4">
                 <Button variant="secondary" onClick={() => setShowBranchModal(false)} className="flex-1">Cancel</Button>
                 <Button type="submit" className="flex-1">Create Branch</Button>
@@ -1342,7 +1343,7 @@ export default function AdminDashboard() {
                   ))}
                 </select>
               </div>
-              <Input label="Department Name" icon={Layers} value={newDepartment.name} onChange={e => setNewDepartment({...newDepartment, name: e.target.value})} required placeholder="e.g., Engineering, Sales, HR" />
+              <Input label="Department Name" icon={Layers} value={newDepartment.name} onChange={e => setNewDepartment({ ...newDepartment, name: e.target.value })} required placeholder="e.g., Engineering, Sales, HR" />
               <div className="flex gap-3 pt-4">
                 <Button variant="secondary" onClick={() => setShowDeptModal(false)} className="flex-1">Cancel</Button>
                 <Button type="submit" className="flex-1">Create Department</Button>
@@ -1351,7 +1352,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-      
+
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -1385,9 +1386,8 @@ const Input = ({ label, icon: Icon, value, onChange, required, placeholder, type
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        className={`w-full ${Icon ? 'pl-10' : 'pl-4'} pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all bg-gray-50 focus:bg-white ${
-          error ? 'border-red-500' : 'border-gray-200'
-        }`}
+        className={`w-full ${Icon ? 'pl-10' : 'pl-4'} pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all bg-gray-50 focus:bg-white ${error ? 'border-red-500' : 'border-gray-200'
+          }`}
       />
     </div>
   </div>
