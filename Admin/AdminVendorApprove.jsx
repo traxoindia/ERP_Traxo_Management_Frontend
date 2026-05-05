@@ -5,7 +5,7 @@ const VendorManager = () => {
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [view, setView] = useState('all'); // 'all' or 'pending'
+  const [view, setView] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -21,11 +21,10 @@ const VendorManager = () => {
     }, 3000);
   };
 
-  const fetchData = async (type) => {
+  const fetchData = async () => {
     setLoading(true);
     setError(null);
     
-    // Fetch all vendors first, then filter based on status
     const url = 'https://api.traxoerp.com/vendors/';
 
     try {
@@ -60,15 +59,16 @@ const VendorManager = () => {
 
   useEffect(() => {
     fetchData();
-  }, []); // Remove view dependency since we filter on frontend
+  }, []);
 
   const handleViewDetails = (vendor) => {
     setSelectedVendor(vendor);
     setShowDetailsModal(true);
   };
 
-  const closeModal = () => {
+  const closeModals = () => {
     setShowDetailsModal(false);
+    setShowRejectModal(false);
     setSelectedVendor(null);
     setRejectReason('');
   };
@@ -76,7 +76,6 @@ const VendorManager = () => {
   const handleApprove = async (vendorId) => {
     setActionLoading(true);
     try {
-      // Using path parameter format: /approve/VEND1034
       const response = await axios.put(
         `https://api.traxoerp.com/vendors/approve/${vendorId}`,
         {},
@@ -90,9 +89,10 @@ const VendorManager = () => {
       
       if (response.status === 200 || response.status === 201) {
         showToast(`Vendor ${vendorId} approved successfully!`, 'success');
+        // Close all modals immediately
+        closeModals();
         // Refresh the data
         await fetchData();
-        closeModal();
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Failed to approve vendor. Please try again.';
@@ -111,7 +111,6 @@ const VendorManager = () => {
     
     setActionLoading(true);
     try {
-      // Using path parameter format: /reject/VEND1034
       const response = await axios.put(
         `https://api.traxoerp.com/vendors/reject/${vendorId}`,
         { reason: rejectReason },
@@ -125,10 +124,10 @@ const VendorManager = () => {
       
       if (response.status === 200 || response.status === 201) {
         showToast(`Vendor ${vendorId} rejected successfully!`, 'success');
+        // Close all modals immediately
+        closeModals();
         // Refresh the data
         await fetchData();
-        setShowRejectModal(false);
-        closeModal();
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Failed to reject vendor. Please try again.';
@@ -146,7 +145,6 @@ const VendorManager = () => {
       case 'PENDING':
         return 'bg-orange-100 text-orange-700';
       case 'APPROVED':
-      case 'ACTIVE':
         return 'bg-green-100 text-green-700';
       case 'REJECTED':
         return 'bg-red-100 text-red-700';
@@ -155,12 +153,27 @@ const VendorManager = () => {
     }
   };
 
-  // Filter vendors based on view (frontend filtering)
-  const filteredVendors = view === 'pending' 
-    ? vendors.filter(v => v.status === 'PENDING')
-    : vendors;
+  // Filter vendors based on selected view
+  const getFilteredVendors = () => {
+    switch(view) {
+      case 'pending':
+        return vendors.filter(v => v.status === 'PENDING');
+      case 'approved':
+        return vendors.filter(v => v.status === 'APPROVED');
+      case 'rejected':
+        return vendors.filter(v => v.status === 'REJECTED');
+      default:
+        return vendors;
+    }
+  };
 
+  const filteredVendors = getFilteredVendors();
+  
+  // Count statistics
+  const totalCount = vendors.length;
   const pendingCount = vendors.filter(v => v.status === 'PENDING').length;
+  const approvedCount = vendors.filter(v => v.status === 'APPROVED').length;
+  const rejectedCount = vendors.filter(v => v.status === 'REJECTED').length;
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -180,33 +193,53 @@ const VendorManager = () => {
       )}
 
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
+        <header className="mb-8">
+          <div className="mb-4">
             <h1 className="text-3xl font-bold text-gray-800">Vendor Management</h1>
             <p className="text-gray-600">Manage and review your ERP vendors</p>
           </div>
 
-          {/* Toggle Buttons */}
-          <div className="inline-flex rounded-md shadow-sm" role="group">
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2 border-b border-gray-200">
             <button
               onClick={() => setView('all')}
-              className={`px-4 py-2 text-sm font-medium border rounded-l-lg transition-colors ${
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
                 view === 'all' 
-                ? 'bg-blue-600 text-white border-blue-600' 
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                ? 'text-blue-600 border-b-2 border-blue-600' 
+                : 'text-gray-600 hover:text-gray-800'
               }`}
             >
-              All Vendors ({vendors.length})
+              All Vendors ({totalCount})
             </button>
             <button
               onClick={() => setView('pending')}
-              className={`px-4 py-2 text-sm font-medium border rounded-r-lg transition-colors ${
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
                 view === 'pending' 
-                ? 'bg-orange-500 text-white border-orange-500' 
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                ? 'text-orange-600 border-b-2 border-orange-600' 
+                : 'text-gray-600 hover:text-gray-800'
               }`}
             >
-              Pending Approval ({pendingCount})
+              Pending ({pendingCount})
+            </button>
+            <button
+              onClick={() => setView('approved')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                view === 'approved' 
+                ? 'text-green-600 border-b-2 border-green-600' 
+                : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Approved ({approvedCount})
+            </button>
+            <button
+              onClick={() => setView('rejected')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                view === 'rejected' 
+                ? 'text-red-600 border-b-2 border-red-600' 
+                : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Rejected ({rejectedCount})
             </button>
           </div>
         </header>
@@ -254,7 +287,7 @@ const VendorManager = () => {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(vendor.status)}`}>
-                            {vendor.status || 'ACTIVE'}
+                            {vendor.status || 'PENDING'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -270,7 +303,7 @@ const VendorManager = () => {
                   ) : (
                     <tr>
                       <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
-                        No {view === 'pending' ? 'pending ' : ''}vendors found.
+                        No {view} vendors found.
                       </td>
                     </tr>
                   )}
@@ -288,7 +321,7 @@ const VendorManager = () => {
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h2 className="text-xl font-bold text-gray-800">Vendor Details - {selectedVendor.vendor_id}</h2>
               <button 
-                onClick={closeModal}
+                onClick={closeModals}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
                 disabled={actionLoading}
               >
@@ -309,7 +342,7 @@ const VendorManager = () => {
                     <label className="text-sm text-gray-500 block">Status</label>
                     <p>
                       <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedVendor.status)}`}>
-                        {selectedVendor.status}
+                        {selectedVendor.status || 'PENDING'}
                       </span>
                     </p>
                   </div>
@@ -450,7 +483,7 @@ const VendorManager = () => {
             
             <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
               <button
-                onClick={closeModal}
+                onClick={closeModals}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 disabled={actionLoading}
               >
@@ -481,7 +514,7 @@ const VendorManager = () => {
 
       {/* Reject Reason Modal */}
       {showRejectModal && selectedVendor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
             <div className="border-b border-gray-200 px-6 py-4">
               <h3 className="text-lg font-semibold text-gray-800">Reject Vendor</h3>
@@ -525,7 +558,7 @@ const VendorManager = () => {
         </div>
       )}
 
-      {/* Add custom CSS for animations */}
+      {/* Custom CSS for animations */}
       <style>{`
         @keyframes slideIn {
           from {

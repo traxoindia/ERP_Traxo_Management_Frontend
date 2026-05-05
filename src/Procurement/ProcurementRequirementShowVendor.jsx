@@ -12,11 +12,18 @@ const ProcurementTableVendor = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const token =localStorage.getItem('token');
+
   const fetchRequirements = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://python-backend-2-5uar.onrender.com/vendors/vendor-see-requirements');
+      const response = await fetch('https://api.traxoerp.com/vendors/vendor-see-requirements', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
+      console.log("Fetched data:", data);
 
 
       // Ensure we handle the array response

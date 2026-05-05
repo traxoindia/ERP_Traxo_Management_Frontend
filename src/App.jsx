@@ -50,6 +50,7 @@ import VendorLogin from "./Procurement/VendorLogin";
 import VendorDashboard from "./Procurement/VendorDashboard";
 import ProcurementRequirementShowVendor from "./Procurement/ProcurementRequirementShowVendor";
 import BulkApproveBGV from "./pages/Career/TestPage/BulkApproveBGV";
+import VendorAddProduct from "./Procurement/VendorAddProduct";
 
 // Payroll
 
@@ -100,6 +101,7 @@ function App() {
         <Route path="/vendorlogin" element={<VendorLogin />} />
         <Route path="/vendor-dashboard" element={<VendorDashboard />} />
         <Route path="/Procurement-requirements" element={<ProcurementRequirementShowVendor />} />
+        <Route path="/my-products" element={<VendorAddProduct/>} />
 
 
         {/* Test */}
