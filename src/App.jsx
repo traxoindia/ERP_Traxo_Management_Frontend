@@ -51,6 +51,9 @@ import VendorDashboard from "./Procurement/VendorDashboard";
 import ProcurementRequirementShowVendor from "./Procurement/ProcurementRequirementShowVendor";
 import BulkApproveBGV from "./pages/Career/TestPage/BulkApproveBGV";
 import VendorAddProduct from "./Procurement/VendorAddProduct";
+import VendorseeOwnProduct from "./Procurement/VendorseeOwnProduct";
+import ProcureMentSeeVendorProducts from "./Procurement/ProcureMentSeeVendorProducts";
+import ProductsApprovedByVendor from "./Procurement/ProductsApprovedByVendor";
 
 // Payroll
 
@@ -102,6 +105,9 @@ function App() {
         <Route path="/vendor-dashboard" element={<VendorDashboard />} />
         <Route path="/Procurement-requirements" element={<ProcurementRequirementShowVendor />} />
         <Route path="/my-products" element={<VendorAddProduct/>} />
+ <Route path="/myown-products" element={<VendorseeOwnProduct/>} />
+          <Route path="/vendorall-products" element={<ProcureMentSeeVendorProducts/>} />
+           <Route path="/approved-products" element={<ProductsApprovedByVendor/>} />
 
 
         {/* Test */}

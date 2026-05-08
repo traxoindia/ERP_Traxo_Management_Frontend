@@ -13,6 +13,184 @@ import BackNavbar from './BackNavbar';
 const API_BASE = "https://api.wemis.in/api";
 const FRONTEND_URL = "https://traxoerp.com";
 
+// Email Modal Component
+const EmailModal = ({ isOpen, onClose, candidate, onSend }) => {
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [bgvLink, setBgvLink] = useState('');
+  const [sending, setSending] = useState(false);
+  const [linkLoading, setLinkLoading] = useState(false);
+
+  useEffect(() => {
+    if (candidate && isOpen) {
+      // Generate default email content
+      setEmailSubject(`BGV Verification Link - ${candidate.fullName}`);
+      setEmailMessage(`Dear ${candidate.fullName},
+
+Your Background Verification (BGV) process has been initiated.
+
+Please complete your BGV verification by clicking the link below:
+
+[LINK_PLACEHOLDER]
+
+This link will take you to the BGV portal where you need to:
+• Upload required documents
+• Fill in your education details
+• Provide employment history
+• Share professional references
+
+Please complete this at your earliest convenience.
+
+If you have any questions, please contact the HR department.
+
+Best regards,
+HR Team
+Traxo ERP`);
+      
+      // Fetch BGV link
+      const fetchLink = async () => {
+        setLinkLoading(true);
+        const token = localStorage.getItem("accessToken");
+        try {
+          const response = await axios.get(`${API_BASE}/hr/bgv/get-link/${candidate.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const link = response.data?.data?.link || response.data?.link || response.data;
+          setBgvLink(link || '');
+        } catch (err) {
+          console.error('Failed to fetch BGV link:', err);
+          setBgvLink('');
+        } finally {
+          setLinkLoading(false);
+        }
+      };
+      fetchLink();
+    }
+  }, [candidate, isOpen]);
+
+  const handleSend = async () => {
+    if (!candidate || !candidate.emailAddress) {
+      alert('No email address available for this candidate');
+      return;
+    }
+
+    if (!bgvLink) {
+      alert('BGV link not available. Please generate the link first.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      // Replace placeholder with actual link
+      const finalMessage = emailMessage.replace('[LINK_PLACEHOLDER]', bgvLink);
+      
+      await onSend(candidate.id, candidate.fullName, candidate.emailAddress, {
+        subject: emailSubject,
+        message: finalMessage,
+        bgvLink: bgvLink
+      });
+      onClose();
+    } catch (err) {
+      console.error('Failed to send email:', err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold">Send BGV Link Email</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <XCircle size={20} />
+            </button>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest mb-2">To</label>
+              <input
+                type="email"
+                value={candidate?.emailAddress || ''}
+                disabled
+                className="w-full p-2 border border-gray-200 rounded bg-gray-50 text-sm"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest mb-2">Subject</label>
+              <input
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                className="w-full p-2 border border-gray-200 rounded text-sm"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest mb-2">BGV Link</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={linkLoading ? "Loading..." : bgvLink}
+                  readOnly
+                  className="flex-1 p-2 border border-gray-200 rounded bg-gray-50 text-xs"
+                />
+                <button
+                  onClick={() => {
+                    if (bgvLink) {
+                      navigator.clipboard.writeText(bgvLink);
+                      alert('Link copied to clipboard!');
+                    }
+                  }}
+                  disabled={!bgvLink || linkLoading}
+                  className="px-3 py-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest mb-2">Message</label>
+              <textarea
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                rows={12}
+                className="w-full p-2 border border-gray-200 rounded text-sm font-mono"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Use [LINK_PLACEHOLDER] to insert the BGV link in your message
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={handleSend}
+              disabled={sending || !bgvLink || linkLoading}
+              className="flex-1 bg-blue-600 text-white py-2 text-sm font-bold uppercase tracking-widest hover:bg-blue-700 transition-all rounded flex items-center justify-center gap-2"
+            >
+              {sending ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
+              Send Email
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 border border-gray-300 py-2 text-sm font-bold uppercase tracking-widest hover:bg-gray-50 transition-all rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const BGVVerification = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -29,6 +207,8 @@ const BGVVerification = () => {
   const [userRole, setUserRole] = useState(null);
   const [processingBGV, setProcessingBGV] = useState({});
   const [bgvSubmissionStatus, setBgvSubmissionStatus] = useState({});
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [selectedCandidateForEmail, setSelectedCandidateForEmail] = useState(null);
   
   // Check user role from token
   const checkUserRole = () => {
@@ -242,33 +422,139 @@ const BGVVerification = () => {
     }
   };
   
-  // Send BGV link via email
-  const sendBGVLinkEmail = async (applicationId, candidateName, email) => {
+  // Send email via API
+  const sendEmailViaAPI = async (applicationId, candidateName, email, emailContent) => {
     setGeneratingLink(prev => ({ ...prev, [applicationId]: true }));
     
     const token = localStorage.getItem("accessToken");
     
     try {
-      const linkResponse = await axios.get(`${API_BASE}/hr/bgv/get-link/${applicationId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      const bgvLink = linkResponse.data?.data?.link || linkResponse.data?.link || linkResponse.data;
-      
+      // If BGV link is not provided in emailContent, fetch it
+      let bgvLink = emailContent.bgvLink;
       if (!bgvLink) {
-        throw new Error("Failed to generate BGV link");
+        const linkResponse = await axios.get(`${API_BASE}/hr/bgv/get-link/${applicationId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        bgvLink = linkResponse.data?.data?.link || linkResponse.data?.link || linkResponse.data;
       }
       
-      await navigator.clipboard.writeText(bgvLink);
+      // Prepare the final message with the link
+      let finalMessage = emailContent.message;
+      if (bgvLink && finalMessage.includes('[LINK_PLACEHOLDER]')) {
+        finalMessage = finalMessage.replace('[LINK_PLACEHOLDER]', bgvLink);
+      }
       
-      setSuccess(`BGV link copied to clipboard. Please send it manually to ${email}`);
+      const response = await axios.post(`${API_BASE}/v1/email/send-manual`, {
+        to: email,
+        subject: emailContent.subject,
+        message: finalMessage
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      console.log('Email sent successfully:', response.data);
+      setSuccess(`✅ Email sent successfully to ${email}`);
       setTimeout(() => setSuccess(null), 3000);
+      return true;
       
     } catch (err) {
-      console.error('Send BGV Link Email Error:', err);
-      setError(err.response?.data?.message || "Failed to generate BGV link");
+      console.error('Send Email Error:', err);
+      setError(err.response?.data?.message || "Failed to send email");
+      setTimeout(() => setError(null), 4000);
+      return false;
     } finally {
       setGeneratingLink(prev => ({ ...prev, [applicationId]: false }));
+    }
+  };
+  
+  // Send bulk emails to multiple candidates
+  const sendBulkBGVLinks = async (candidates) => {
+    setLoading(true);
+    setError(null);
+    
+    const token = localStorage.getItem("accessToken");
+    let successCount = 0;
+    let failCount = 0;
+    
+    try {
+      for (const candidate of candidates) {
+        try {
+          // Get BGV link
+          const linkResponse = await axios.get(`${API_BASE}/hr/bgv/get-link/${candidate.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          const bgvLink = linkResponse.data?.data?.link || linkResponse.data?.link || linkResponse.data;
+          
+          if (bgvLink && candidate.emailAddress) {
+            // Prepare email
+            const emailSubject = `BGV Verification Required - ${candidate.fullName}`;
+            const emailMessage = `Dear ${candidate.fullName},
+
+Your Background Verification (BGV) process has been initiated.
+
+Please complete your BGV verification by clicking the link below:
+
+${bgvLink}
+
+This link will take you to the BGV portal where you need to:
+• Upload required documents
+• Fill in your education details
+• Provide employment history
+• Share professional references
+
+Please complete this at your earliest convenience.
+
+Best regards,
+HR Team
+Traxo ERP`;
+            
+            // Send email
+            await axios.post(`${API_BASE}/v1/email/send-manual`, {
+              to: candidate.emailAddress,
+              subject: emailSubject,
+              message: emailMessage
+            }, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json"
+              }
+            });
+            
+            successCount++;
+            
+            // Update BGV data map
+            setBgvDataMap(prev => ({
+              ...prev,
+              [candidate.id]: {
+                ...prev[candidate.id],
+                hasBGV: true,
+                link: bgvLink,
+                token: extractTokenFromLink(bgvLink),
+                fullLink: bgvLink
+              }
+            }));
+          } else {
+            failCount++;
+            console.log(`Failed for ${candidate.fullName}: No email or link`);
+          }
+        } catch (err) {
+          console.error(`Failed to send email to ${candidate.emailAddress}:`, err);
+          failCount++;
+        }
+      }
+      
+      setSuccess(`📧 Emails sent! Success: ${successCount}, Failed: ${failCount}`);
+      setTimeout(() => setSuccess(null), 5000);
+      
+    } catch (err) {
+      console.error('Bulk email error:', err);
+      setError("Failed to send bulk emails");
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -387,8 +673,16 @@ const BGVVerification = () => {
     };
     const Icon = icons[badge.status] || Shield;
     
+    const colorClasses = {
+      cyan: 'bg-cyan-50 text-cyan-700',
+      indigo: 'bg-indigo-50 text-indigo-700',
+      orange: 'bg-orange-50 text-orange-700',
+      green: 'bg-green-50 text-green-700',
+      red: 'bg-red-50 text-red-700'
+    };
+    
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-widest bg-${badge.color}-50 text-${badge.color}-700 rounded`}>
+      <span className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${colorClasses[badge.color]} rounded`}>
         <Icon size={10} />
         {badge.text}
       </span>
@@ -471,6 +765,22 @@ const BGVVerification = () => {
                   Role: {userRole}
                 </span>
               )}
+              <button
+                onClick={() => {
+                  if (filteredCandidates.length > 0) {
+                    if (window.confirm(`Send BGV emails to ${filteredCandidates.length} candidates?`)) {
+                      sendBulkBGVLinks(filteredCandidates);
+                    }
+                  } else {
+                    alert('No candidates to send emails to');
+                  }
+                }}
+                disabled={loading || filteredCandidates.length === 0}
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50 rounded"
+              >
+                <Send size={12} />
+                Send Bulk Emails
+              </button>
               <button
                 onClick={fetchCandidates}
                 disabled={loading}
@@ -570,9 +880,7 @@ const BGVVerification = () => {
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr className="text-[10px] text-gray-400 uppercase tracking-widest">
                         <th className="px-6 py-4 font-bold">Candidate</th>
-                       
                         <th className="px-6 py-4 font-bold">Stage</th>
-                        
                         <th className="px-6 py-4 font-bold text-right">Actions</th>
                       </tr>
                     </thead>
@@ -600,7 +908,6 @@ const BGVVerification = () => {
                                   <Briefcase size={10} /> {candidate.currentJobTitle || 'Position not specified'}
                                 </p>
                               </td>
-                              
                             
                               <td className="px-6 py-5">
                                 <StatusBadge candidateId={candidate.id} />
@@ -615,6 +922,20 @@ const BGVVerification = () => {
                                     className="text-[10px] font-bold uppercase tracking-widest border border-black px-3 py-1 hover:bg-black hover:text-white transition-all rounded"
                                   >
                                     View Details
+                                  </button>
+                                  
+                                  {/* Send Email Button */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCandidateForEmail(candidate);
+                                      setEmailModalOpen(true);
+                                    }}
+                                    disabled={generatingLink[candidate.id]}
+                                    className="text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white px-3 py-1 hover:bg-blue-700 transition-all flex items-center gap-1 rounded"
+                                  >
+                                    <Send size={10} />
+                                    Send Email
                                   </button>
                                   
                                   {/* For BGV_IN_PROGRESS stage candidates - Show BGV management buttons */}
@@ -637,8 +958,6 @@ const BGVVerification = () => {
                                         )}
                                         Get Link
                                       </button>
-                                      
-                                      
                                       
                                       {bgvData.token && (
                                         <button
@@ -703,13 +1022,13 @@ const BGVVerification = () => {
                         })
                       ) : (
                         <tr>
-                          <td colSpan="5" className="px-6 py-10 text-center text-gray-400 italic text-sm">
+                          <td colSpan="3" className="px-6 py-10 text-center text-gray-400 italic text-sm">
                             {searchTerm ? "No matching candidates found." : "No candidates in BGV_IN_PROGRESS stage."}
                           </td>
                         </tr>
                       )}
                     </tbody>
-                   </table>
+                  </table>
                 </div>
               )}
               
@@ -775,6 +1094,19 @@ const BGVVerification = () => {
               
               {/* Action Buttons */}
               <div className="flex gap-3 flex-wrap">
+                {/* Send Email Button in Detail View */}
+                <button
+                  onClick={() => {
+                    setSelectedCandidateForEmail(selectedCandidate);
+                    setEmailModalOpen(true);
+                  }}
+                  disabled={generatingLink[selectedCandidate.id]}
+                  className="px-4 py-2 bg-blue-600 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center gap-2 rounded"
+                >
+                  <Send size={14} />
+                  Send Email
+                </button>
+                
                 {getBGVSubmissionStatus(selectedCandidate.id) !== 'APPROVED' && getBGVSubmissionStatus(selectedCandidate.id) !== 'REJECTED' && (
                   <>
                     <button
@@ -988,6 +1320,19 @@ const BGVVerification = () => {
           )}
         </div>
       </div>
+      
+      {/* Email Modal */}
+      {emailModalOpen && (
+        <EmailModal
+          isOpen={emailModalOpen}
+          onClose={() => {
+            setEmailModalOpen(false);
+            setSelectedCandidateForEmail(null);
+          }}
+          candidate={selectedCandidateForEmail}
+          onSend={sendEmailViaAPI}
+        />
+      )}
     </>
   );
 };

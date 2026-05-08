@@ -64,6 +64,9 @@ function VendorNavbar() {
                 Procurement Requirements
               </Link>
               <Link to="/my-products" className={linkStyle('/my-products')}>
+                Add Products
+              </Link>
+               <Link to="/myown-products" className={linkStyle('/myown-products')}>
                 My Products
               </Link>
             </div>
