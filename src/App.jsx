@@ -54,6 +54,7 @@ import VendorAddProduct from "./Procurement/VendorAddProduct";
 import VendorseeOwnProduct from "./Procurement/VendorseeOwnProduct";
 import ProcureMentSeeVendorProducts from "./Procurement/ProcureMentSeeVendorProducts";
 import ProductsApprovedByVendor from "./Procurement/ProductsApprovedByVendor";
+import ProcureMentSeeOwnProducts from "./Procurement/ProcureMentSeeOwnProducts";
 
 // Payroll
 
@@ -108,6 +109,7 @@ function App() {
  <Route path="/myown-products" element={<VendorseeOwnProduct/>} />
           <Route path="/vendorall-products" element={<ProcureMentSeeVendorProducts/>} />
            <Route path="/approved-products" element={<ProductsApprovedByVendor/>} />
+           <Route path="/ProcurementSeeOwncreate-products" element={<ProcureMentSeeOwnProducts/>} />
 
 
         {/* Test */}

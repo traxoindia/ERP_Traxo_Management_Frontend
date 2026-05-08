@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import ProcurementNavbar from './ProcurementNavbar'
 
 function ProcureMentSeeVendorProducts() {
   const [products, setProducts] = useState([])
@@ -140,7 +141,9 @@ function ProcureMentSeeVendorProducts() {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <>
+        <ProcurementNavbar/>
+        <div className="bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-6">
@@ -499,6 +502,7 @@ function ProcureMentSeeVendorProducts() {
         </div>
       )}
     </div>
+    </>
   )
 }
 

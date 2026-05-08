@@ -78,6 +78,14 @@ const ProcurementNavbar = () => {
                 <PlusCircle size={18} />
                 <span className="hidden sm:inline">Create Requirement</span>
               </button>
+
+              <button
+                onClick={() =>navigate("/ProcurementSeeOwncreate-products")}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md"
+              >
+                
+                <span className="hidden sm:inline">Created Products</span>
+              </button>
                <button
                 onClick={() =>navigate("/vendorall-products")}
                 className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-md"
@@ -85,6 +93,8 @@ const ProcurementNavbar = () => {
                 
                 <span className="hidden sm:inline">Vendor Products</span>
               </button>
+
+
                <button
                 onClick={() =>navigate("/approved-products")}
                 className="flex items-center gap-2 px-4 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-md"
@@ -92,6 +102,9 @@ const ProcurementNavbar = () => {
                 
                 <span className="hidden sm:inline">Approved Products</span>
               </button>
+
+
+
 
 
 
