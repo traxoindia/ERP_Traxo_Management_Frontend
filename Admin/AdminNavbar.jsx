@@ -109,6 +109,29 @@ const useBranches = (companyId) => {
   return { branches, loading, refetch: fetchBranches };
 };
 
+const countryCodes = [
+  { code: '+1', country: 'US/Canada', flag: '🇺🇸', dialCode: '1' },
+  { code: '+44', country: 'UK', flag: '🇬🇧', dialCode: '44' },
+  { code: '+91', country: 'India', flag: '🇮🇳', dialCode: '91' },
+  { code: '+61', country: 'Australia', flag: '🇦🇺', dialCode: '61' },
+  { code: '+49', country: 'Germany', flag: '🇩🇪', dialCode: '49' },
+  { code: '+33', country: 'France', flag: '🇫🇷', dialCode: '33' },
+  { code: '+81', country: 'Japan', flag: '🇯🇵', dialCode: '81' },
+  { code: '+86', country: 'China', flag: '🇨🇳', dialCode: '86' },
+  { code: '+55', country: 'Brazil', flag: '🇧🇷', dialCode: '55' },
+  { code: '+52', country: 'Mexico', flag: '🇲🇽', dialCode: '52' },
+  { code: '+7', country: 'Russia', flag: '🇷🇺', dialCode: '7' },
+  { code: '+82', country: 'South Korea', flag: '🇰🇷', dialCode: '82' },
+  { code: '+39', country: 'Italy', flag: '🇮🇹', dialCode: '39' },
+  { code: '+34', country: 'Spain', flag: '🇪🇸', dialCode: '34' },
+  { code: '+64', country: 'New Zealand', flag: '🇳🇿', dialCode: '64' },
+  { code: '+65', country: 'Singapore', flag: '🇸🇬', dialCode: '65' },
+  { code: '+60', country: 'Malaysia', flag: '🇲🇾', dialCode: '60' },
+  { code: '+971', country: 'UAE', flag: '🇦🇪', dialCode: '971' },
+  { code: '+966', country: 'Saudi Arabia', flag: '🇸🇦', dialCode: '966' },
+  { code: '+27', country: 'South Africa', flag: '🇿🇦', dialCode: '27' },
+];
+
 const useDepartments = (branchId) => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -143,6 +166,14 @@ export default function AdminDashboard() {
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [departmentHeads, setDepartmentHeads] = useState([]);
   const [loadingHeads, setLoadingHeads] = useState(false);
+  
+  // Country code states for phone fields
+  const [selectedCountryCode, setSelectedCountryCode] = useState(countryCodes.find(c => c.code === '+91') || countryCodes[0]);
+  const [selectedAuthCountryCode, setSelectedAuthCountryCode] = useState(countryCodes.find(c => c.code === '+91') || countryCodes[0]);
+  const [selectedHeadCountryCode, setSelectedHeadCountryCode] = useState(countryCodes.find(c => c.code === '+91') || countryCodes[0]);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [showAuthCountryDropdown, setShowAuthCountryDropdown] = useState(false);
+  const [showHeadCountryDropdown, setShowHeadCountryDropdown] = useState(false);
   
   // Filter states for heads view
   const [filterCompanyId, setFilterCompanyId] = useState('');
@@ -678,6 +709,84 @@ export default function AdminDashboard() {
     { id: 'heads', label: 'Department Heads', icon: Crown },
   ];
   
+  // Phone Input Component with Country Code Dropdown
+  const PhoneInputWithCountryCode = ({ value, onChange, placeholder, error, required = false, selectedCode, onCodeChange, showDropdown, setShowDropdown, label }) => {
+    const inputRef = React.useRef(null);
+    
+    // Format phone number to only digits
+    const handlePhoneChange = (e) => {
+      const rawValue = e.target.value.replace(/\D/g, '');
+      onChange(rawValue);
+    };
+    
+    // Close dropdown when clicking outside
+    React.useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (inputRef.current && !inputRef.current.contains(event.target)) {
+          setShowDropdown(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [setShowDropdown]);
+    
+    const displayValue = value ? value : '';
+    
+    return (
+      <div className="space-y-1" ref={inputRef}>
+        {label && <label className="text-sm font-semibold text-gray-700">{label} {required && <span className="text-red-500">*</span>}</label>}
+        <div className="flex gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="flex items-center gap-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-all text-sm"
+            >
+              <span className="text-lg">{selectedCode.flag}</span>
+              <span className="font-medium">{selectedCode.code}</span>
+              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            {showDropdown && (
+              <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto">
+                {countryCodes.map((cc) => (
+                  <button
+                    key={cc.code}
+                    type="button"
+                    onClick={() => {
+                      onCodeChange(cc);
+                      setShowDropdown(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 transition-colors text-sm"
+                  >
+                    <span className="text-lg">{cc.flag}</span>
+                    <span className="font-medium">{cc.code}</span>
+                    <span className="text-gray-500 text-xs">{cc.country}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative flex-1">
+            <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="tel"
+              required={required}
+              placeholder={placeholder}
+              value={displayValue}
+              onChange={handlePhoneChange}
+              className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all bg-gray-50 focus:bg-white ${error ? 'border-red-500' : 'border-gray-200'}`}
+            />
+          </div>
+        </div>
+        {error && (
+          <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+            <AlertCircle size={12} /> {error}
+          </p>
+        )}
+      </div>
+    );
+  };
+  
   // Dashboard View Component
   const DashboardView = () => {
     const [stats, setStats] = useState({ companies: 0, branches: 0, departments: 0, employees: 0 });
@@ -852,11 +961,11 @@ export default function AdminDashboard() {
                       </div>
                       <span className="font-semibold text-gray-900">{branch.name}</span>
                     </div>
-                  </td>
+                   </td>
                   <td className="px-6 py-4 text-gray-600">{branch.location}</td>
                   <td className="px-6 py-4">
                     <code className="text-xs bg-gray-100 px-2 py-1 rounded">{branch._id?.slice(-8)}</code>
-                  </td>
+                   </td>
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => handleDeleteBranch(branch._id)}
@@ -864,7 +973,7 @@ export default function AdminDashboard() {
                     >
                       Delete
                     </button>
-                  </td>
+                   </td>
                 </tr>
               ))}
             </tbody>
@@ -1356,7 +1465,7 @@ export default function AdminDashboard() {
                         icon={Building2}
                         value={formData.companyInfo.companyName}
                         onChange={(val) => handleInputChange('companyInfo', 'companyName', val)}
-                        placeholder="Brand Name *"
+                        placeholder="Company Name *"
                         error={validationErrors.companyName}
                         required
                       />
@@ -1366,7 +1475,7 @@ export default function AdminDashboard() {
                         icon={ShieldCheck}
                         value={formData.companyInfo.legalName}
                         onChange={(val) => handleInputChange('companyInfo', 'legalName', val)}
-                        placeholder="Legal Entity Name *"
+                        placeholder="Legal Name *"
                         error={validationErrors.legalName}
                         required
                       />
@@ -1399,7 +1508,7 @@ export default function AdminDashboard() {
                       icon={Users}
                       value={formData.companyInfo.numberOfEmployees}
                       onChange={(val) => handleInputChange('companyInfo', 'numberOfEmployees', val)}
-                      placeholder="Number of Employees *"
+                      placeholder="Number of Department *"
                       error={validationErrors.numberOfEmployees}
                       required
                     />
@@ -1428,14 +1537,15 @@ export default function AdminDashboard() {
                         placeholder="Operational Address (if different)"
                       />
                     </div>
-                    <InputFieldComponent
-                      icon={MapPin}
-                      value={formData.address.city}
-                      onChange={(val) => handleInputChange('address', 'city', val)}
-                      placeholder="City *"
-                      error={validationErrors.city}
+                    <SelectFieldComponent
+                      icon={Globe}
+                      value={formData.address.country}
+                      onChange={(val) => handleInputChange('address', 'country', val)}
+                      placeholder="Country *"
+                      options={countries}
                       required
                     />
+                  
                     <InputFieldComponent
                       icon={MapPin}
                       value={formData.address.state}
@@ -1444,12 +1554,13 @@ export default function AdminDashboard() {
                       error={validationErrors.state}
                       required
                     />
-                    <SelectFieldComponent
-                      icon={Globe}
-                      value={formData.address.country}
-                      onChange={(val) => handleInputChange('address', 'country', val)}
-                      placeholder="Country *"
-                      options={countries}
+               
+                 <InputFieldComponent
+                      icon={MapPin}
+                      value={formData.address.city}
+                      onChange={(val) => handleInputChange('address', 'city', val)}
+                      placeholder="City *"
+                      error={validationErrors.city}
                       required
                     />
                     <InputFieldComponent
@@ -1476,84 +1587,118 @@ export default function AdminDashboard() {
                 </section>
                 
                 {/* Contact Information */}
-                <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
-                  <SectionHeader icon={Mail} title="Contact Information" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <InputFieldComponent
-                      icon={Mail}
-                      value={formData.contact.email}
-                      onChange={(val) => handleInputChange('contact', 'email', val)}
-                      placeholder="Corporate Email *"
-                      error={validationErrors.email}
-                      type="email"
-                      required
-                    />
-                    <InputFieldComponent
-                      icon={Phone}
-                      value={formData.contact.phone}
-                      onChange={(val) => handleInputChange('contact', 'phone', val)}
-                      placeholder="Business Phone *"
-                      error={validationErrors.phone}
-                      required
-                    />
-                    <InputFieldComponent
-                      icon={Globe}
-                      value={formData.contact.website}
-                      onChange={(val) => handleInputChange('contact', 'website', val)}
-                      placeholder="Website URL"
-                    />
-                  </div>
-                </section>
+               <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 lg:p-8 shadow-sm w-full">
+  <SectionHeader icon={Mail} title="Contact Information" />
+
+  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+    
+    {/* Email */}
+    <div className="w-full">
+      <InputFieldComponent
+        icon={Mail}
+        value={formData.contact.email}
+        onChange={(val) => handleInputChange('contact', 'email', val)}
+        placeholder="Corporate Email *"
+        error={validationErrors.email}
+        type="email"
+        required
+      />
+    </div>
+
+    {/* Phone */}
+    <div className="w-full">
+      <PhoneInputWithCountryCode
+        value={formData.contact.phone}
+        onChange={(val) => handleInputChange('contact', 'phone', val)}
+        placeholder="Phone Number"
+        error={validationErrors.phone}
+        required={true}
+        selectedCode={selectedCountryCode}
+        onCodeChange={setSelectedCountryCode}
+        showDropdown={showCountryDropdown}
+        setShowDropdown={setShowCountryDropdown}
+        label="Business Phone"
+      />
+    </div>
+
+    {/* Website */}
+    <div className="w-full sm:col-span-2 xl:col-span-1">
+      <InputFieldComponent
+        icon={Globe}
+        value={formData.contact.website}
+        onChange={(val) => handleInputChange('contact', 'website', val)}
+        placeholder="Website URL"
+      />
+    </div>
+
+  </div>
+</section>
                 
                 {/* Authorized Person */}
-                <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
-                  <SectionHeader icon={UserCircle} title="Authorized Representative" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <InputFieldComponent
-                      icon={UserCircle}
-                      value={formData.authorizedPerson.fullName}
-                      onChange={(val) => handleInputChange('authorizedPerson', 'fullName', val)}
-                      placeholder="Full Name *"
-                      error={validationErrors.fullName}
-                      required
-                    />
-                    <InputFieldComponent
-                      icon={Briefcase}
-                      value={formData.authorizedPerson.designation}
-                      onChange={(val) => handleInputChange('authorizedPerson', 'designation', val)}
-                      placeholder="Designation *"
-                      error={validationErrors.designation}
-                      required
-                    />
-                    <InputFieldComponent
-                      icon={Mail}
-                      value={formData.authorizedPerson.email}
-                      onChange={(val) => handleInputChange('authorizedPerson', 'email', val)}
-                      placeholder="Direct Email *"
-                      error={validationErrors.authEmail}
-                      type="email"
-                      required
-                    />
-                    <InputFieldComponent
-                      icon={Phone}
-                      value={formData.authorizedPerson.phone}
-                      onChange={(val) => handleInputChange('authorizedPerson', 'phone', val)}
-                      placeholder="Mobile Number *"
-                      error={validationErrors.authPhone}
-                      required
-                    />
-                    <div className="col-span-full lg:col-span-2">
-                      <InputFieldComponent
-                        icon={ShieldCheck}
-                        value={formData.authorizedPerson.idProofNumber}
-                        onChange={(val) => handleInputChange('authorizedPerson', 'idProofNumber', val)}
-                        placeholder="Government ID Proof Number (PAN/Aadhar/Passport) *"
-                        error={validationErrors.idProofNumber}
-                        required
-                      />
-                    </div>
-                  </div>
-                </section>
+               <section className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6 shadow-sm">
+  <SectionHeader icon={UserCircle} title="Authorized Representative" />
+
+  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+    {/* Full Name */}
+    <InputFieldComponent
+      icon={UserCircle}
+      value={formData.authorizedPerson.fullName}
+      onChange={(val) => handleInputChange('authorizedPerson', 'fullName', val)}
+      placeholder="Full Name *"
+      error={validationErrors.fullName}
+      required
+    />
+
+    {/* Designation */}
+    <InputFieldComponent
+      icon={Briefcase}
+      value={formData.authorizedPerson.designation}
+      onChange={(val) => handleInputChange('authorizedPerson', 'designation', val)}
+      placeholder="Designation *"
+      error={validationErrors.designation}
+      required
+    />
+
+    {/* Email */}
+    <InputFieldComponent
+      icon={Mail}
+      value={formData.authorizedPerson.email}
+      onChange={(val) => handleInputChange('authorizedPerson', 'email', val)}
+      placeholder="Direct Email *"
+      error={validationErrors.authEmail}
+      type="email"
+      required
+    />
+
+    {/* Phone */}
+    <PhoneInputWithCountryCode
+      value={formData.authorizedPerson.phone}
+      onChange={(val) => handleInputChange('authorizedPerson', 'phone', val)}
+      placeholder="Mobile Number"
+      error={validationErrors.authPhone}
+      required={true}
+      selectedCode={selectedAuthCountryCode}
+      onCodeChange={setSelectedAuthCountryCode}
+      showDropdown={showAuthCountryDropdown}
+      setShowDropdown={setShowAuthCountryDropdown}
+     
+    />
+
+    {/* ID Proof */}
+    <div className="md:col-span-2 xl:col-span-2">
+      <InputFieldComponent
+        icon={ShieldCheck}
+        value={formData.authorizedPerson.idProofNumber}
+        onChange={(val) => handleInputChange('authorizedPerson', 'idProofNumber', val)}
+        placeholder="Government ID Proof Number (PAN/Aadhar/Passport) *"
+        error={validationErrors.idProofNumber}
+        required
+      />
+    </div>
+
+  </div>
+</section>
                 
                 {/* Banking Details */}
                 <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
@@ -1604,24 +1749,8 @@ export default function AdminDashboard() {
                 
                 {/* Tax Information */}
                 <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
-                  <SectionHeader icon={Hash} title="Tax Information" />
+                  <SectionHeader icon={Hash} title="Company Tax Information" />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <InputFieldComponent
-                      icon={Hash}
-                      value={formData.taxInformation.pan}
-                      onChange={(val) => handleInputChange('taxInformation', 'pan', val)}
-                      placeholder="PAN Number *"
-                      error={validationErrors.pan}
-                      required
-                    />
-                    <InputFieldComponent
-                      icon={Hash}
-                      value={formData.taxInformation.gst}
-                      onChange={(val) => handleInputChange('taxInformation', 'gst', val)}
-                      placeholder="GST Number *"
-                      error={validationErrors.gst}
-                      required
-                    />
                     <InputFieldComponent
                       icon={Hash}
                       value={formData.taxInformation.cin}
@@ -1634,6 +1763,26 @@ export default function AdminDashboard() {
                       onChange={(val) => handleInputChange('taxInformation', 'tan', val)}
                       placeholder="TAN (Tax Deduction Account Number)"
                     />
+
+                      <InputFieldComponent
+                      icon={Hash}
+                      value={formData.taxInformation.gst}
+                      onChange={(val) => handleInputChange('taxInformation', 'gst', val)}
+                      placeholder="GST Number *"
+                      error={validationErrors.gst}
+                      required
+                    />
+                    <InputFieldComponent
+                      icon={Hash}
+                      value={formData.taxInformation.pan}
+                      onChange={(val) => handleInputChange('taxInformation', 'pan', val)}
+                      placeholder="PAN Number *"
+                      error={validationErrors.pan}
+                      required
+                    />
+                  
+                  
+                    
                   </div>
                 </section>
                 
@@ -1976,18 +2125,17 @@ export default function AdminDashboard() {
                 </div>
                 
                 <div className="space-y-1">
-                  <label className="text-sm font-semibold text-gray-700">Mobile Number <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="tel"
-                      required
-                      placeholder="Auto-filled from employee selection"
-                      value={headFormData.head_mobileno}
-                      onChange={(e) => setHeadFormData({ ...headFormData, head_mobileno: e.target.value })}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    />
-                  </div>
+                  <PhoneInputWithCountryCode
+                    value={headFormData.head_mobileno}
+                    onChange={(val) => setHeadFormData({ ...headFormData, head_mobileno: val })}
+                    placeholder="Mobile Number"
+                    required={true}
+                    selectedCode={selectedHeadCountryCode}
+                    onCodeChange={setSelectedHeadCountryCode}
+                    showDropdown={showHeadCountryDropdown}
+                    setShowDropdown={setShowHeadCountryDropdown}
+                    label="Mobile Number"
+                  />
                 </div>
               </div>
               
