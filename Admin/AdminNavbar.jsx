@@ -7,7 +7,7 @@ import {
   Loader2, LogOut, ChevronDown, User, Calendar, Layers, Trash2, 
   Home, Menu, ChevronLeft, TrendingUp, Clock, Settings, HelpCircle, 
   AlertCircle, Crown, UserPlus, Users as UsersIcon, Eye, Edit, 
-  CheckCircle, ArrowRight
+  CheckCircle, ArrowRight, Filter, MapPinned
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -139,6 +139,17 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [departmentHeads, setDepartmentHeads] = useState([]);
+  const [loadingHeads, setLoadingHeads] = useState(false);
+  
+  // Filter states for heads view
+  const [filterCompanyId, setFilterCompanyId] = useState('');
+  const [filterBranchId, setFilterBranchId] = useState('');
+  const [filterDepartmentId, setFilterDepartmentId] = useState('');
+  const [filterBranches, setFilterBranches] = useState([]);
+  const [filterDepartments, setFilterDepartments] = useState([]);
   
   // Modal states
   const [showCompanyModal, setShowCompanyModal] = useState(false);
@@ -155,8 +166,9 @@ export default function AdminDashboard() {
     
   // Department Head creation states
   const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [headFormData, setHeadFormData] = useState({
-    head_id: '', // This will be auto-filled from selected department
+    head_id: '',
     head_name: '',
     head_email: '',
     head_mobileno: ''
@@ -183,7 +195,9 @@ export default function AdminDashboard() {
       city: '',
       state: '',
       country: '',
-      pinCode: ''
+      pinCode: '',
+      lattitude: '',
+      longitude: ''
     },
     contact: {
       email: '',
@@ -211,6 +225,103 @@ export default function AdminDashboard() {
       tan: ''
     }
   });
+
+  // Fetch Employee Directory
+  async function getEmployeeDirectory() {
+    setLoadingEmployees(true);
+    try {
+      const response = await axios.get("https://api.wemis.in/api/employees/directory");
+      console.log("Employee Directory:", response.data);
+      setEmployees(response.data || []);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching employee directory:", error.response?.data || error.message);
+      toast.error("Failed to fetch employee directory");
+    } finally {
+      setLoadingEmployees(false);
+    }
+  }
+
+  // Fetch Department Heads based on department
+  const fetchDepartmentHeads = async (department_id) => {
+    if (!department_id) {
+      setDepartmentHeads([]);
+      return;
+    }
+    
+    setLoadingHeads(true);
+    try {
+      const response = await axios.get(
+        `https://api.traxoerp.com/auth/fetch-All-DepertmentHead-Onthe-basis-of-Depertment/${department_id}`
+      );
+      console.log("Department Heads:", response.data);
+      setDepartmentHeads(response.data || []);
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Error fetching department heads:",
+        error.response?.data || error.message
+      );
+      toast.error("Failed to fetch department heads");
+      setDepartmentHeads([]);
+    } finally {
+      setLoadingHeads(false);
+    }
+  };
+
+  // Load filter branches when company changes
+  useEffect(() => {
+    const loadFilterBranches = async () => {
+      if (!filterCompanyId) {
+        setFilterBranches([]);
+        return;
+      }
+      try {
+        const res = await axios.post(`${API_BASE_URL}/branches/get-by-company`,
+          { company_id: filterCompanyId }, getAuthHeaders()
+        );
+        setFilterBranches(res.data.branches || []);
+      } catch (err) {
+        toast.error("Failed to load branches");
+        setFilterBranches([]);
+      }
+    };
+    loadFilterBranches();
+  }, [filterCompanyId]);
+
+  // Load filter departments when branch changes
+  useEffect(() => {
+    const loadFilterDepartments = async () => {
+      if (!filterBranchId) {
+        setFilterDepartments([]);
+        return;
+      }
+      try {
+        const res = await axios.post(`${API_BASE_URL}/departments/get-by-branch`,
+          { branch_id: filterBranchId }, getAuthHeaders()
+        );
+        setFilterDepartments(res.data.departments || []);
+      } catch (err) {
+        toast.error("Failed to load departments");
+        setFilterDepartments([]);
+      }
+    };
+    loadFilterDepartments();
+  }, [filterBranchId]);
+
+  // Fetch department heads when department changes
+  useEffect(() => {
+    if (filterDepartmentId) {
+      fetchDepartmentHeads(filterDepartmentId);
+    } else {
+      setDepartmentHeads([]);
+    }
+  }, [filterDepartmentId]);
+
+  // Load employees when component mounts
+  useEffect(() => {
+    getEmployeeDirectory();
+  }, []);
   
   // Company Types and Industries options
   const companyTypes = [
@@ -252,7 +363,6 @@ export default function AdminDashboard() {
   const validateForm = () => {
     const errors = {};
     
-    // Company Info Validation
     if (!formData.companyInfo.companyName) errors.companyName = 'Company name is required';
     if (!formData.companyInfo.legalName) errors.legalName = 'Legal name is required';
     if (!formData.companyInfo.companyType) errors.companyType = 'Company type is required';
@@ -260,14 +370,12 @@ export default function AdminDashboard() {
     if (!formData.companyInfo.yearOfIncorporation) errors.yearOfIncorporation = 'Year of incorporation is required';
     if (!formData.companyInfo.numberOfEmployees) errors.numberOfEmployees = 'Number of employees is required';
     
-    // Address Validation
     if (!formData.address.registeredAddress) errors.registeredAddress = 'Registered address is required';
     if (!formData.address.city) errors.city = 'City is required';
     if (!formData.address.state) errors.state = 'State is required';
     if (!formData.address.country) errors.country = 'Country is required';
     if (!formData.address.pinCode) errors.pinCode = 'PIN code is required';
     
-    // Contact Validation
     if (!formData.contact.email) {
       errors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.contact.email)) {
@@ -275,7 +383,6 @@ export default function AdminDashboard() {
     }
     if (!formData.contact.phone) errors.phone = 'Phone number is required';
     
-    // Authorized Person Validation
     if (!formData.authorizedPerson.fullName) errors.fullName = 'Full name is required';
     if (!formData.authorizedPerson.designation) errors.designation = 'Designation is required';
     if (!formData.authorizedPerson.email) {
@@ -286,13 +393,11 @@ export default function AdminDashboard() {
     if (!formData.authorizedPerson.phone) errors.authPhone = 'Phone number is required';
     if (!formData.authorizedPerson.idProofNumber) errors.idProofNumber = 'ID proof number is required';
     
-    // Bank Details Validation
     if (!formData.bankDetails.bankName) errors.bankName = 'Bank name is required';
     if (!formData.bankDetails.accountHolderName) errors.accountHolderName = 'Account holder name is required';
     if (!formData.bankDetails.accountNumber) errors.accountNumber = 'Account number is required';
     if (!formData.bankDetails.ifscCode) errors.ifscCode = 'IFSC code is required';
     
-    // Tax Information Validation
     if (!formData.taxInformation.pan) errors.pan = 'PAN number is required';
     if (!formData.taxInformation.gst) errors.gst = 'GST number is required';
     
@@ -318,10 +423,9 @@ export default function AdminDashboard() {
       setShowCompanyModal(false);
       refetchCompanies();
       
-      // Reset form
       setFormData({
         companyInfo: { companyName: '', legalName: '', companyType: '', industry: '', yearOfIncorporation: '', numberOfEmployees: '' },
-        address: { registeredAddress: '', operationalAddress: '', city: '', state: '', country: '', pinCode: '' },
+        address: { registeredAddress: '', operationalAddress: '', city: '', state: '', country: '', pinCode: '', lattitude: '', longitude: '' },
         contact: { email: '', phone: '', website: '' },
         authorizedPerson: { fullName: '', designation: '', email: '', phone: '', idProofNumber: '' },
         bankDetails: { bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '', branchName: '' },
@@ -406,32 +510,37 @@ export default function AdminDashboard() {
     }
   };
   
-  // Handle department selection - auto-fill head_id with department._id
   const handleDepartmentSelect = (e) => {
     const dept = departments.find(d => d._id === e.target.value);
     setSelectedDepartment(dept || null);
+  };
+  
+  const handleEmployeeSelect = (e) => {
+    const employee = employees.find(emp => emp.id === e.target.value);
+    setSelectedEmployee(employee || null);
     
-    // Auto-fill head_id with selected department's _id
-    if (dept) {
-      setHeadFormData(prev => ({
-        ...prev,
-        head_id: dept._id // Auto-fill from selected department
-      }));
+    if (employee) {
+      setHeadFormData({
+        head_id: employee.id,
+        head_name: employee.fullName || '',
+        head_email: employee.emailAddress || '',
+        head_mobileno: employee.phoneNumber || ''
+      });
     } else {
-      setHeadFormData(prev => ({
-        ...prev,
-        head_id: ''
-      }));
+      setHeadFormData({
+        head_id: '',
+        head_name: '',
+        head_email: '',
+        head_mobileno: ''
+      });
     }
   };
   
-  // Handle Department Head Creation with PUT method
   const handleCreateDepartmentHead = async (e) => {
     e.preventDefault();
     
-    // Validate form - head_id is auto-filled, so only check other fields
-    if (!headFormData.head_name || !headFormData.head_email || !headFormData.head_mobileno) {
-      toast.error('Please fill all department head fields!');
+    if (!headFormData.head_id || !headFormData.head_name || !headFormData.head_email || !headFormData.head_mobileno) {
+      toast.error('Please select an employee to assign as department head!');
       return;
     }
     
@@ -440,14 +549,17 @@ export default function AdminDashboard() {
       return;
     }
     
-    // Validate email format
+    if (!selectedEmployee) {
+      toast.error('Please select an employee!');
+      return;
+    }
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(headFormData.head_email)) {
       toast.error('Please enter a valid email address!');
       return;
     }
     
-    // Validate mobile number (10 digits)
     const mobileRegex = /^\d{10}$/;
     if (!mobileRegex.test(headFormData.head_mobileno)) {
       toast.error('Please enter a valid 10-digit mobile number!');
@@ -455,14 +567,13 @@ export default function AdminDashboard() {
     }
     
     setCreatingHead(true);
-    const loadingToast = toast.loading('Creating department head...');
+    const loadingToast = toast.loading('Assigning department head...');
     
     try {
-      // Using PUT method with selectedDepartment._id as head_id
       await axios.put(
         `${API_BASE_URL}/departments/assign-head/${selectedDepartment._id}`,
         {
-          head_id: selectedDepartment._id, // Using department _id as head_id
+          head_id: headFormData.head_id,
           head_name: headFormData.head_name,
           head_email: headFormData.head_email,
           head_mobileno: headFormData.head_mobileno
@@ -471,10 +582,9 @@ export default function AdminDashboard() {
       );
       
       toast.dismiss(loadingToast);
-      toast.success('Department head created and assigned successfully! 👑');
+      toast.success('Department head assigned successfully! 👑');
       setShowCreateHeadModal(false);
       
-      // Reset form
       setHeadFormData({
         head_id: '',
         head_name: '',
@@ -484,13 +594,19 @@ export default function AdminDashboard() {
       setSelectedCompanyId('');
       setSelectedBranchId('');
       setSelectedDepartment(null);
-      refetchDepartments(); // Refresh to show updated department info
+      setSelectedEmployee(null);
+      refetchDepartments();
+      
+      // Refresh heads if currently viewing the same department
+      if (filterDepartmentId === selectedDepartment._id) {
+        fetchDepartmentHeads(filterDepartmentId);
+      }
       
     } catch (err) {
       toast.dismiss(loadingToast);
-      const errorMsg = err.response?.data?.detail || 'Failed to create department head';
+      const errorMsg = err.response?.data?.detail || 'Failed to assign department head';
       toast.error(errorMsg);
-      console.error('Create head error:', err);
+      console.error('Assign head error:', err);
     } finally {
       setCreatingHead(false);
     }
@@ -527,17 +643,30 @@ export default function AdminDashboard() {
   };
   
   const openCreateHeadModal = () => {
-    // Reset selections when opening modal
     setSelectedCompanyId('');
     setSelectedBranchId('');
     setSelectedDepartment(null);
+    setSelectedEmployee(null);
     setHeadFormData({
-      head_id: '', // This will be auto-filled when department is selected
+      head_id: '',
       head_name: '',
       head_email: '',
       head_mobileno: ''
     });
     setShowCreateHeadModal(true);
+  };
+  
+  const handleFilterCompanyChange = (companyId) => {
+    setFilterCompanyId(companyId);
+    setFilterBranchId('');
+    setFilterDepartmentId('');
+    setDepartmentHeads([]);
+  };
+  
+  const handleFilterBranchChange = (branchId) => {
+    setFilterBranchId(branchId);
+    setFilterDepartmentId('');
+    setDepartmentHeads([]);
   };
   
   // Navigation items
@@ -551,15 +680,16 @@ export default function AdminDashboard() {
   
   // Dashboard View Component
   const DashboardView = () => {
-    const [stats, setStats] = useState({ companies: 0, branches: 0, departments: 0 });
+    const [stats, setStats] = useState({ companies: 0, branches: 0, departments: 0, employees: 0 });
     
     useEffect(() => {
       setStats({
         companies: companies.length,
         branches: branches.length,
-        departments: departments.length
+        departments: departments.length,
+        employees: employees.length
       });
-    }, [companies, branches, departments]);
+    }, [companies, branches, departments, employees]);
     
     return (
       <div className="space-y-8">
@@ -587,6 +717,10 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold">{stats.departments}</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <p className="text-sm text-blue-100">Total Employees</p>
+              <p className="text-2xl font-bold">{stats.employees}</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
               <p className="text-sm text-blue-100">Growth Rate</p>
               <p className="text-2xl font-bold">+24%</p>
             </div>
@@ -607,7 +741,7 @@ export default function AdminDashboard() {
                 Add Department
               </Button>
               <Button variant="outline" icon={Crown} onClick={openCreateHeadModal} className="w-full justify-start">
-                Create Department Head
+                Assign Department Head
               </Button>
             </div>
           </Card>
@@ -801,7 +935,6 @@ export default function AdminDashboard() {
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">{dept.name}</h3>
               
-              {/* Display Department Head if assigned */}
               {dept.head_id && dept.head_name && (
                 <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
                   <div className="flex items-center gap-2 mb-2">
@@ -838,28 +971,24 @@ export default function AdminDashboard() {
     </div>
   );
   
-  // Department Heads View Component
+  // Department Heads View Component - Displayed directly on the page
   const HeadsView = () => {
     const [allDepartmentsWithHeads, setAllDepartmentsWithHeads] = useState([]);
     
-    // Fetch all departments with heads from all branches
     useEffect(() => {
       const fetchAllDepartments = async () => {
         try {
-          // First get all companies
           const companiesRes = await axios.get(`${API_BASE_URL}/company/get-companies`, getAuthHeaders());
           const allCompanies = companiesRes.data.companies || [];
           
           let allDepts = [];
           for (const company of allCompanies) {
-            // Get branches for each company
             const branchesRes = await axios.post(`${API_BASE_URL}/branches/get-by-company`,
               { company_id: company._id }, getAuthHeaders()
             );
             const branchesData = branchesRes.data.branches || [];
             
             for (const branch of branchesData) {
-              // Get departments for each branch
               const deptsRes = await axios.post(`${API_BASE_URL}/departments/get-by-branch`,
                 { branch_id: branch._id }, getAuthHeaders()
               );
@@ -885,60 +1014,205 @@ export default function AdminDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Department Heads</h1>
-            <p className="text-gray-500 mt-1">Manage all department heads across the organization</p>
+            <p className="text-gray-500 mt-1">View and manage department heads across your organization</p>
           </div>
           <Button icon={Plus} onClick={openCreateHeadModal}>
-            Create Department Head
+            Assign Department Head
           </Button>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {allDepartmentsWithHeads.map(dept => (
-            <Card key={dept._id} hover className="group">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <Crown size={22} className="text-white" />
-                  </div>
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1">{dept.head_name}</h3>
-                <p className="text-sm text-gray-500">ID: {dept.head_id}</p>
-                
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail size={14} />
-                    <span className="truncate">{dept.head_email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Phone size={14} />
-                    <span>{dept.head_mobileno}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Layers size={14} />
-                    <span>Department: {dept.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Building2 size={14} />
-                    <span>Company: {dept.companyName}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin size={14} />
-                    <span>Branch: {dept.branchName}</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        {/* Filter Section */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter size={18} className="text-blue-600" />
+            <h3 className="font-semibold text-gray-900">Filter Department Heads</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">Select Company</label>
+              <select
+                value={filterCompanyId}
+                onChange={(e) => handleFilterCompanyChange(e.target.value)}
+                className="w-full p-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+              >
+                <option value="">All Companies</option>
+                {companies.map(company => (
+                  <option key={company._id} value={company._id}>
+                    {company.companyInfo?.companyName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">Select Branch</label>
+              <select
+                value={filterBranchId}
+                onChange={(e) => handleFilterBranchChange(e.target.value)}
+                className="w-full p-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:opacity-50"
+                disabled={!filterCompanyId}
+              >
+                <option value="">All Branches</option>
+                {filterBranches.map(branch => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name} - {branch.location}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">Select Department</label>
+              <select
+                value={filterDepartmentId}
+                onChange={(e) => setFilterDepartmentId(e.target.value)}
+                className="w-full p-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:opacity-50"
+                disabled={!filterBranchId}
+              >
+                <option value="">All Departments</option>
+                {filterDepartments.map(dept => (
+                  <option key={dept._id} value={dept._id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </Card>
         
-        {allDepartmentsWithHeads.length === 0 && (
+        {/* Loading State */}
+        {loadingHeads && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 size={32} className="animate-spin text-blue-600" />
+            <span className="ml-3 text-gray-600">Loading department heads...</span>
+          </div>
+        )}
+        
+        {/* Department Heads List */}
+        {!loadingHeads && filterDepartmentId && departmentHeads.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Crown size={22} className="text-yellow-500" />
+                Department Heads
+                <span className="text-sm font-normal text-gray-500">
+                  ({departmentHeads.length} {departmentHeads.length === 1 ? 'Head' : 'Heads'})
+                </span>
+              </h2>
+              <Button variant="outline" icon={Plus} onClick={openCreateHeadModal} size="sm">
+                Add New
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {departmentHeads.map((head, index) => (
+                <Card key={index} hover className="overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-14 h-14 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+                        <Crown size={24} className="text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">{head.head_name}</h3>
+                        <p className="text-xs text-gray-500">Department Head</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3 mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Building2 size={14} className="text-gray-400" />
+                        <span className="text-gray-600">Department:</span>
+                        <span className="font-medium text-gray-800">{head.department_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail size={14} className="text-gray-400" />
+                        <span className="text-gray-600">Email:</span>
+                        <span className="font-medium text-gray-800 truncate">{head.head_email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone size={14} className="text-gray-400" />
+                        <span className="text-gray-600">Mobile:</span>
+                        <span className="font-medium text-gray-800">{head.head_mobileno}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* No Results State */}
+        {!loadingHeads && filterDepartmentId && departmentHeads.length === 0 && (
           <Card className="p-12 text-center">
             <Crown size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">No department heads found</p>
+            <p className="text-gray-500">No department heads found for this department</p>
             <Button variant="outline" icon={Plus} onClick={openCreateHeadModal} className="mt-4">
-              Create First Department Head
+              Assign Department Head
             </Button>
           </Card>
+        )}
+        
+        {/* Initial State - No Department Selected */}
+        {!filterDepartmentId && !loadingHeads && (
+          <Card className="p-12 text-center">
+            <Users size={48} className="mx-auto text-gray-300 mb-4" />
+            <p className="text-gray-500">Select a company, branch, and department to view department heads</p>
+            <div className="text-sm text-gray-400 mt-2">
+              Use the filters above to browse department heads
+            </div>
+          </Card>
+        )}
+        
+        {/* All Department Heads Summary (when no filter is applied) */}
+        {!filterDepartmentId && !loadingHeads && allDepartmentsWithHeads.length > 0 && (
+          <div className="space-y-4 mt-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Users size={22} className="text-blue-500" />
+                All Department Heads Overview
+                <span className="text-sm font-normal text-gray-500">
+                  ({allDepartmentsWithHeads.length} {allDepartmentsWithHeads.length === 1 ? 'Head' : 'Heads'})
+                </span>
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allDepartmentsWithHeads.slice(0, 6).map((dept, index) => (
+                <Card key={index} hover className="overflow-hidden">
+                  <div className="p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
+                        <User size={18} className="text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">{dept.head_name}</h4>
+                        <p className="text-xs text-gray-500">Head of {dept.name}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Building2 size={12} className="text-gray-400" />
+                        <span className="text-gray-600">{dept.companyName}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin size={12} className="text-gray-400" />
+                        <span className="text-gray-600">{dept.branchName}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+            {allDepartmentsWithHeads.length > 6 && (
+              <div className="text-center pt-4">
+                <p className="text-sm text-gray-500">
+                  And {allDepartmentsWithHeads.length - 6} more department heads...
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Use filters above to see all department heads for specific departments
+                </p>
+              </div>
+            )}
+          </div>
         )}
       </div>
     );
@@ -1055,29 +1329,29 @@ export default function AdminDashboard() {
         </div>
       </main>
       
-      {/* ONBOARDING MODAL */}
+      {/* ONBOARDING MODAL - FULL SCREEN */}
       {showCompanyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCompanyModal(false)}></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setShowCompanyModal(false)}></div>
           
-          <div className="relative bg-white w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-[2rem] shadow-2xl flex flex-col">
-            <div className="p-6 border-b flex justify-between items-center bg-gradient-to-r from-blue-50 to-white">
+          <div className="relative bg-white w-full h-full flex flex-col overflow-y-auto">
+            <div className="sticky top-0 z-10 p-6 border-b bg-white/90 backdrop-blur-sm flex justify-between items-center shadow-sm">
               <div>
                 <h2 className="text-2xl font-black text-slate-900">Company Onboarding</h2>
-                <p className="text-sm text-gray-500 mt-1">All fields marked with * are required</p>
+                <p className="text-sm text-gray-500 mt-1">Complete all fields to register a new company in the system</p>
               </div>
-              <button onClick={() => setShowCompanyModal(false)} className="p-2 hover:bg-white rounded-full text-gray-400 hover:text-red-500 transition-colors">
-                <X size={24} />
+              <button onClick={() => setShowCompanyModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors">
+                <X size={28} />
               </button>
             </div>
             
-            <form onSubmit={handleOnboard} className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
-                {/* Company Identity Section */}
-                <section>
-                  <SectionHeader icon={Building2} title="Company Identity *" />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
+            <form onSubmit={handleOnboard} className="flex-1 p-8 lg:p-12">
+              <div className="max-w-7xl mx-auto space-y-16">
+                {/* Company Identity */}
+                <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
+                  <SectionHeader icon={Building2} title="Company Identity" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="col-span-full lg:col-span-1">
                       <InputFieldComponent
                         icon={Building2}
                         value={formData.companyInfo.companyName}
@@ -1087,14 +1361,16 @@ export default function AdminDashboard() {
                         required
                       />
                     </div>
-                    <InputFieldComponent
-                      icon={ShieldCheck}
-                      value={formData.companyInfo.legalName}
-                      onChange={(val) => handleInputChange('companyInfo', 'legalName', val)}
-                      placeholder="Legal Entity Name *"
-                      error={validationErrors.legalName}
-                      required
-                    />
+                    <div className="col-span-full lg:col-span-1">
+                      <InputFieldComponent
+                        icon={ShieldCheck}
+                        value={formData.companyInfo.legalName}
+                        onChange={(val) => handleInputChange('companyInfo', 'legalName', val)}
+                        placeholder="Legal Entity Name *"
+                        error={validationErrors.legalName}
+                        required
+                      />
+                    </div>
                     <SelectFieldComponent
                       icon={Briefcase}
                       value={formData.companyInfo.companyType}
@@ -1115,43 +1391,41 @@ export default function AdminDashboard() {
                       icon={Calendar}
                       value={formData.companyInfo.yearOfIncorporation}
                       onChange={(val) => handleInputChange('companyInfo', 'yearOfIncorporation', val)}
-                      placeholder="Est. Year *"
+                      placeholder="Year of Incorporation *"
                       error={validationErrors.yearOfIncorporation}
                       required
                     />
-                    <div className="col-span-2">
-                      <InputFieldComponent
-                        icon={Users}
-                        value={formData.companyInfo.numberOfEmployees}
-                        onChange={(val) => handleInputChange('companyInfo', 'numberOfEmployees', val)}
-                        placeholder="Headcount *"
-                        error={validationErrors.numberOfEmployees}
-                        required
-                      />
-                    </div>
+                    <InputFieldComponent
+                      icon={Users}
+                      value={formData.companyInfo.numberOfEmployees}
+                      onChange={(val) => handleInputChange('companyInfo', 'numberOfEmployees', val)}
+                      placeholder="Number of Employees *"
+                      error={validationErrors.numberOfEmployees}
+                      required
+                    />
                   </div>
                 </section>
                 
-                {/* Address Section */}
-                <section>
-                  <SectionHeader icon={MapPin} title="Global Presence *" />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
+                {/* Address Information with Lat/Long */}
+                <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
+                  <SectionHeader icon={MapPin} title="Address & Geolocation" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="col-span-full">
                       <InputFieldComponent
                         icon={MapPin}
                         value={formData.address.registeredAddress}
                         onChange={(val) => handleInputChange('address', 'registeredAddress', val)}
-                        placeholder="Registered Address *"
+                        placeholder="Registered Address (Full) *"
                         error={validationErrors.registeredAddress}
                         required
                       />
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-full">
                       <InputFieldComponent
                         icon={MapPin}
                         value={formData.address.operationalAddress}
                         onChange={(val) => handleInputChange('address', 'operationalAddress', val)}
-                        placeholder="Operational Address"
+                        placeholder="Operational Address (if different)"
                       />
                     </div>
                     <InputFieldComponent
@@ -1186,13 +1460,25 @@ export default function AdminDashboard() {
                       error={validationErrors.pinCode}
                       required
                     />
+                    <InputFieldComponent
+                      icon={MapPinned}
+                      value={formData.address.lattitude}
+                      onChange={(val) => handleInputChange('address', 'lattitude', val)}
+                      placeholder="Latitude (optional)"
+                    />
+                    <InputFieldComponent
+                      icon={MapPinned}
+                      value={formData.address.longitude}
+                      onChange={(val) => handleInputChange('address', 'longitude', val)}
+                      placeholder="Longitude (optional)"
+                    />
                   </div>
                 </section>
                 
-                {/* Communication Section */}
-                <section>
-                  <SectionHeader icon={Mail} title="Communication *" />
-                  <div className="grid grid-cols-2 gap-4">
+                {/* Contact Information */}
+                <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
+                  <SectionHeader icon={Mail} title="Contact Information" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <InputFieldComponent
                       icon={Mail}
                       value={formData.contact.email}
@@ -1210,21 +1496,19 @@ export default function AdminDashboard() {
                       error={validationErrors.phone}
                       required
                     />
-                    <div className="col-span-2">
-                      <InputFieldComponent
-                        icon={Globe}
-                        value={formData.contact.website}
-                        onChange={(val) => handleInputChange('contact', 'website', val)}
-                        placeholder="Website URL"
-                      />
-                    </div>
+                    <InputFieldComponent
+                      icon={Globe}
+                      value={formData.contact.website}
+                      onChange={(val) => handleInputChange('contact', 'website', val)}
+                      placeholder="Website URL"
+                    />
                   </div>
                 </section>
                 
-                {/* Authorized Representative Section */}
-                <section>
-                  <SectionHeader icon={UserCircle} title="Authorized Representative *" />
-                  <div className="grid grid-cols-2 gap-4">
+                {/* Authorized Person */}
+                <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
+                  <SectionHeader icon={UserCircle} title="Authorized Representative" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <InputFieldComponent
                       icon={UserCircle}
                       value={formData.authorizedPerson.fullName}
@@ -1258,12 +1542,12 @@ export default function AdminDashboard() {
                       error={validationErrors.authPhone}
                       required
                     />
-                    <div className="col-span-2">
+                    <div className="col-span-full lg:col-span-2">
                       <InputFieldComponent
                         icon={ShieldCheck}
                         value={formData.authorizedPerson.idProofNumber}
                         onChange={(val) => handleInputChange('authorizedPerson', 'idProofNumber', val)}
-                        placeholder="ID Proof Number *"
+                        placeholder="Government ID Proof Number (PAN/Aadhar/Passport) *"
                         error={validationErrors.idProofNumber}
                         required
                       />
@@ -1271,10 +1555,10 @@ export default function AdminDashboard() {
                   </div>
                 </section>
                 
-                {/* Banking Details Section */}
-                <section>
-                  <SectionHeader icon={Landmark} title="Banking Details *" />
-                  <div className="grid grid-cols-2 gap-4">
+                {/* Banking Details */}
+                <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
+                  <SectionHeader icon={Landmark} title="Banking Details" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <InputFieldComponent
                       icon={Landmark}
                       value={formData.bankDetails.bankName}
@@ -1287,7 +1571,7 @@ export default function AdminDashboard() {
                       icon={UserCircle}
                       value={formData.bankDetails.accountHolderName}
                       onChange={(val) => handleInputChange('bankDetails', 'accountHolderName', val)}
-                      placeholder="Holder Name *"
+                      placeholder="Account Holder Name *"
                       error={validationErrors.accountHolderName}
                       required
                     />
@@ -1307,18 +1591,26 @@ export default function AdminDashboard() {
                       error={validationErrors.ifscCode}
                       required
                     />
+                    <div className="col-span-full lg:col-span-2">
+                      <InputFieldComponent
+                        icon={Landmark}
+                        value={formData.bankDetails.branchName}
+                        onChange={(val) => handleInputChange('bankDetails', 'branchName', val)}
+                        placeholder="Bank Branch Name"
+                      />
+                    </div>
                   </div>
                 </section>
                 
-                {/* Tax Information Section */}
-                <section>
-                  <SectionHeader icon={Hash} title="Tax Information *" />
-                  <div className="grid grid-cols-2 gap-4">
+                {/* Tax Information */}
+                <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
+                  <SectionHeader icon={Hash} title="Tax Information" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <InputFieldComponent
                       icon={Hash}
                       value={formData.taxInformation.pan}
                       onChange={(val) => handleInputChange('taxInformation', 'pan', val)}
-                      placeholder="PAN *"
+                      placeholder="PAN Number *"
                       error={validationErrors.pan}
                       required
                     />
@@ -1326,7 +1618,7 @@ export default function AdminDashboard() {
                       icon={Hash}
                       value={formData.taxInformation.gst}
                       onChange={(val) => handleInputChange('taxInformation', 'gst', val)}
-                      placeholder="GST *"
+                      placeholder="GST Number *"
                       error={validationErrors.gst}
                       required
                     />
@@ -1334,44 +1626,48 @@ export default function AdminDashboard() {
                       icon={Hash}
                       value={formData.taxInformation.cin}
                       onChange={(val) => handleInputChange('taxInformation', 'cin', val)}
-                      placeholder="CIN"
+                      placeholder="CIN (Company Identification Number)"
                     />
                     <InputFieldComponent
                       icon={Hash}
                       value={formData.taxInformation.tan}
                       onChange={(val) => handleInputChange('taxInformation', 'tan', val)}
-                      placeholder="TAN"
+                      placeholder="TAN (Tax Deduction Account Number)"
                     />
                   </div>
                 </section>
-              </div>
-              
-              <div className="mt-10 sticky bottom-0 bg-white/80 backdrop-blur-md border-t border-gray-200 px-4 py-4 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCompanyModal(false)}
-                  className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition"
-                >
-                  Cancel
-                </button>
                 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition ${loading
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'bg-black text-white hover:bg-blue-600'
-                    }`}
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    'Complete Onboarding'
-                  )}
-                </button>
+                {/* Form Actions */}
+                <div className="sticky bottom-8 z-10 mt-8 flex justify-end gap-4 pt-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm p-4 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setShowCompanyModal(false)}
+                    className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                  
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`px-8 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-md ${loading
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-blue-500/30'
+                      }`}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={18} />
+                        Complete Onboarding
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1472,15 +1768,15 @@ export default function AdminDashboard() {
         </div>
       )}
       
-      {/* CREATE DEPARTMENT HEAD MODAL - With Company → Branch → Department hierarchy */}
+      {/* ASSIGN DEPARTMENT HEAD MODAL */}
       {showCreateHeadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCreateHeadModal(false)}></div>
           <div className="relative bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
             <div className="p-6 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-white sticky top-0 bg-white z-10">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Create Department Head</h2>
-                <p className="text-sm text-gray-500">Select company, branch, department and assign head details</p>
+                <h2 className="text-xl font-bold text-gray-900">Assign Department Head</h2>
+                <p className="text-sm text-gray-500">Select department and assign an employee as department head</p>
               </div>
               <button onClick={() => setShowCreateHeadModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
                 <X size={20} />
@@ -1488,7 +1784,6 @@ export default function AdminDashboard() {
             </div>
             
             <form onSubmit={handleCreateDepartmentHead} className="p-6 space-y-6">
-              {/* Step 1: Select Company */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">1</span>
@@ -1500,7 +1795,13 @@ export default function AdminDashboard() {
                     setSelectedCompanyId(e.target.value);
                     setSelectedBranchId('');
                     setSelectedDepartment(null);
-                    setHeadFormData(prev => ({ ...prev, head_id: '' }));
+                    setSelectedEmployee(null);
+                    setHeadFormData({
+                      head_id: '',
+                      head_name: '',
+                      head_email: '',
+                      head_mobileno: ''
+                    });
                   }}
                   className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                   required
@@ -1514,7 +1815,6 @@ export default function AdminDashboard() {
                 </select>
               </div>
               
-              {/* Step 2: Select Branch (enabled only after company selection) */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">2</span>
@@ -1525,7 +1825,13 @@ export default function AdminDashboard() {
                   onChange={(e) => {
                     setSelectedBranchId(e.target.value);
                     setSelectedDepartment(null);
-                    setHeadFormData(prev => ({ ...prev, head_id: '' }));
+                    setSelectedEmployee(null);
+                    setHeadFormData({
+                      head_id: '',
+                      head_name: '',
+                      head_email: '',
+                      head_mobileno: ''
+                    });
                   }}
                   className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!selectedCompanyId}
@@ -1538,12 +1844,8 @@ export default function AdminDashboard() {
                     </option>
                   ))}
                 </select>
-                {!selectedCompanyId && (
-                  <p className="text-xs text-amber-600">Please select a company first</p>
-                )}
               </div>
               
-              {/* Step 3: Select Department (enabled only after branch selection) */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">3</span>
@@ -1563,12 +1865,8 @@ export default function AdminDashboard() {
                     </option>
                   ))}
                 </select>
-                {!selectedBranchId && selectedCompanyId && (
-                  <p className="text-xs text-amber-600">Please select a branch first</p>
-                )}
               </div>
               
-              {/* Selected department summary */}
               {selectedDepartment && (
                 <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
                   <CheckCircle size={18} className="text-green-600" />
@@ -1578,33 +1876,73 @@ export default function AdminDashboard() {
                 </div>
               )}
               
-              {/* Divider */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                  Select Employee (Department Head)
+                </label>
+                <select
+                  value={selectedEmployee?.id || ''}
+                  onChange={handleEmployeeSelect}
+                  className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  required
+                  disabled={loadingEmployees}
+                >
+                  <option value="">-- Select an Employee --</option>
+                  {employees.map(employee => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.fullName} - {employee.designation || 'No Designation'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {selectedEmployee && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <User size={18} className="text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-800">Selected Employee Details</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-gray-500">Employee ID</p>
+                      <p className="font-medium text-gray-900">{selectedEmployee.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Employee Code</p>
+                      <p className="font-medium text-gray-900">{selectedEmployee.employeeId}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Designation</p>
+                      <p className="font-medium text-gray-900">{selectedEmployee.designation || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200"></div>
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="px-2 bg-white text-gray-500">Department Head Details</span>
+                  <span className="px-2 bg-white text-gray-500">Department Head Details (Auto-filled)</span>
                 </div>
               </div>
               
-              {/* Head Details Form */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Head ID - Auto-filled from department selection */}
                 <div className="space-y-1">
-                  <label className="text-sm font-semibold text-gray-700">Head ID <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-gray-700">Head ID (Employee ID) <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                       type="text"
                       required
-                      placeholder="Auto-filled from department"
+                      placeholder="Auto-filled from selected employee"
                       value={headFormData.head_id}
                       disabled
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-gray-100 cursor-not-allowed"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-gray-100 cursor-not-allowed font-mono text-sm"
                     />
                   </div>
-                  <p className="text-xs text-gray-500">Head ID is automatically assigned from selected department</p>
                 </div>
                 
                 <div className="space-y-1">
@@ -1614,7 +1952,7 @@ export default function AdminDashboard() {
                     <input
                       type="text"
                       required
-                      placeholder="Enter department head's full name"
+                      placeholder="Auto-filled from employee selection"
                       value={headFormData.head_name}
                       onChange={(e) => setHeadFormData({ ...headFormData, head_name: e.target.value })}
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -1629,7 +1967,7 @@ export default function AdminDashboard() {
                     <input
                       type="email"
                       required
-                      placeholder="head@company.com"
+                      placeholder="Auto-filled from employee selection"
                       value={headFormData.head_email}
                       onChange={(e) => setHeadFormData({ ...headFormData, head_email: e.target.value })}
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -1644,7 +1982,7 @@ export default function AdminDashboard() {
                     <input
                       type="tel"
                       required
-                      placeholder="10-digit mobile number"
+                      placeholder="Auto-filled from employee selection"
                       value={headFormData.head_mobileno}
                       onChange={(e) => setHeadFormData({ ...headFormData, head_mobileno: e.target.value })}
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -1654,12 +1992,7 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex gap-3 pt-4">
-                <Button 
-                  variant="secondary"
-                  onClick={() => setShowCreateHeadModal(false)}
-                  className="flex-1"
-                  type="button"
-                >
+                <Button variant="secondary" onClick={() => setShowCreateHeadModal(false)} className="flex-1" type="button">
                   Cancel
                 </Button>
                 <Button 
@@ -1667,9 +2000,9 @@ export default function AdminDashboard() {
                   className="flex-1"
                   loading={creatingHead}
                   icon={Crown}
-                  disabled={!selectedDepartment || !headFormData.head_name || !headFormData.head_email || !headFormData.head_mobileno}
+                  disabled={!selectedDepartment || !selectedEmployee || !headFormData.head_id}
                 >
-                  Create & Assign Head
+                  Assign Department Head
                 </Button>
               </div>
             </form>
