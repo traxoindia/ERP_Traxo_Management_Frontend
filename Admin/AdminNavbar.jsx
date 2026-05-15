@@ -207,7 +207,13 @@ export default function AdminDashboard() {
   const [creatingHead, setCreatingHead] = useState(false);
   
   // Other form states
-  const [newBranch, setNewBranch] = useState({ name: '', location: '' });
+  const [newBranch, setNewBranch] = useState({ 
+    name: '', 
+    location: '', 
+    lattitude: '', 
+    longitude: '', 
+    radius: '' 
+  });
   const [newDepartment, setNewDepartment] = useState({ name: '' });
   const [loading, setLoading] = useState(false);
   
@@ -495,21 +501,43 @@ export default function AdminDashboard() {
       return;
     }
     
+    // Validate latitude, longitude, radius are numbers
+    const lattitude = parseFloat(newBranch.lattitude);
+    const longitude = parseFloat(newBranch.longitude);
+    const radius = parseInt(newBranch.radius, 10);
+    
+    if (isNaN(lattitude)) {
+      toast.error('Please enter a valid latitude (number)');
+      return;
+    }
+    if (isNaN(longitude)) {
+      toast.error('Please enter a valid longitude (number)');
+      return;
+    }
+    if (isNaN(radius) || radius <= 0) {
+      toast.error('Please enter a valid radius (positive number)');
+      return;
+    }
+    
     const loadingToast = toast.loading('Creating branch...');
     try {
       await axios.post(`${API_BASE_URL}/branches/`, {
         name: newBranch.name,
         location: newBranch.location,
+        lattitude: lattitude,
+        longitude: longitude,
+        radius: radius,
         company_id: selectedCompanyId
       }, getAuthHeaders());
       toast.dismiss(loadingToast);
       toast.success('Branch created successfully! 🎉');
-      setNewBranch({ name: '', location: '' });
+      setNewBranch({ name: '', location: '', lattitude: '', longitude: '', radius: '' });
       setShowBranchModal(false);
       refetchBranches();
     } catch (err) {
       toast.dismiss(loadingToast);
       toast.error('Failed to create branch');
+      console.error('Branch creation error:', err);
     }
   };
   
@@ -947,7 +975,8 @@ export default function AdminDashboard() {
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Branch Name</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Location</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Branch ID</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Coordinates</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Radius</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -964,7 +993,20 @@ export default function AdminDashboard() {
                    </td>
                   <td className="px-6 py-4 text-gray-600">{branch.location}</td>
                   <td className="px-6 py-4">
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded">{branch._id?.slice(-8)}</code>
+                    {branch.lattitude && branch.longitude ? (
+                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        {branch.lattitude}, {branch.longitude}
+                      </code>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Not set</span>
+                    )}
+                   </td>
+                  <td className="px-6 py-4">
+                    {branch.radius ? (
+                      <span className="text-sm font-medium text-gray-700">{branch.radius}m</span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Not set</span>
+                    )}
                    </td>
                   <td className="px-6 py-4 text-right">
                     <button
@@ -1515,9 +1557,9 @@ export default function AdminDashboard() {
                   </div>
                 </section>
                 
-                {/* Address Information with Lat/Long */}
+                {/* Address Information - Lat/Long fields removed as requested */}
                 <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
-                  <SectionHeader icon={MapPin} title="Address & Geolocation" />
+                  <SectionHeader icon={MapPin} title="Address Information" />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div className="col-span-full">
                       <InputFieldComponent
@@ -1555,7 +1597,7 @@ export default function AdminDashboard() {
                       required
                     />
                
-                 <InputFieldComponent
+                    <InputFieldComponent
                       icon={MapPin}
                       value={formData.address.city}
                       onChange={(val) => handleInputChange('address', 'city', val)}
@@ -1571,134 +1613,109 @@ export default function AdminDashboard() {
                       error={validationErrors.pinCode}
                       required
                     />
-                    <InputFieldComponent
-                      icon={MapPinned}
-                      value={formData.address.lattitude}
-                      onChange={(val) => handleInputChange('address', 'lattitude', val)}
-                      placeholder="Latitude (optional)"
-                    />
-                    <InputFieldComponent
-                      icon={MapPinned}
-                      value={formData.address.longitude}
-                      onChange={(val) => handleInputChange('address', 'longitude', val)}
-                      placeholder="Longitude (optional)"
-                    />
                   </div>
                 </section>
                 
                 {/* Contact Information */}
-               <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 lg:p-8 shadow-sm w-full">
-  <SectionHeader icon={Mail} title="Contact Information" />
-
-  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-    
-    {/* Email */}
-    <div className="w-full">
-      <InputFieldComponent
-        icon={Mail}
-        value={formData.contact.email}
-        onChange={(val) => handleInputChange('contact', 'email', val)}
-        placeholder="Corporate Email *"
-        error={validationErrors.email}
-        type="email"
-        required
-      />
-    </div>
-
-    {/* Phone */}
-    <div className="w-full">
-      <PhoneInputWithCountryCode
-        value={formData.contact.phone}
-        onChange={(val) => handleInputChange('contact', 'phone', val)}
-        placeholder="Phone Number"
-        error={validationErrors.phone}
-        required={true}
-        selectedCode={selectedCountryCode}
-        onCodeChange={setSelectedCountryCode}
-        showDropdown={showCountryDropdown}
-        setShowDropdown={setShowCountryDropdown}
-        label="Business Phone"
-      />
-    </div>
-
-    {/* Website */}
-    <div className="w-full sm:col-span-2 xl:col-span-1">
-      <InputFieldComponent
-        icon={Globe}
-        value={formData.contact.website}
-        onChange={(val) => handleInputChange('contact', 'website', val)}
-        placeholder="Website URL"
-      />
-    </div>
-
-  </div>
-</section>
+                <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 lg:p-8 shadow-sm w-full">
+                  <SectionHeader icon={Mail} title="Contact Information" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                    {/* Email */}
+                    <div className="w-full">
+                      <InputFieldComponent
+                        icon={Mail}
+                        value={formData.contact.email}
+                        onChange={(val) => handleInputChange('contact', 'email', val)}
+                        placeholder="Corporate Email *"
+                        error={validationErrors.email}
+                        type="email"
+                        required
+                      />
+                    </div>
+                    {/* Phone */}
+                    <div className="w-full">
+                      <PhoneInputWithCountryCode
+                        value={formData.contact.phone}
+                        onChange={(val) => handleInputChange('contact', 'phone', val)}
+                        placeholder="Phone Number"
+                        error={validationErrors.phone}
+                        required={true}
+                        selectedCode={selectedCountryCode}
+                        onCodeChange={setSelectedCountryCode}
+                        showDropdown={showCountryDropdown}
+                        setShowDropdown={setShowCountryDropdown}
+                        label="Business Phone"
+                      />
+                    </div>
+                    {/* Website */}
+                    <div className="w-full sm:col-span-2 xl:col-span-1">
+                      <InputFieldComponent
+                        icon={Globe}
+                        value={formData.contact.website}
+                        onChange={(val) => handleInputChange('contact', 'website', val)}
+                        placeholder="Website URL"
+                      />
+                    </div>
+                  </div>
+                </section>
                 
                 {/* Authorized Person */}
-               <section className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6 shadow-sm">
-  <SectionHeader icon={UserCircle} title="Authorized Representative" />
-
-  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-
-    {/* Full Name */}
-    <InputFieldComponent
-      icon={UserCircle}
-      value={formData.authorizedPerson.fullName}
-      onChange={(val) => handleInputChange('authorizedPerson', 'fullName', val)}
-      placeholder="Full Name *"
-      error={validationErrors.fullName}
-      required
-    />
-
-    {/* Designation */}
-    <InputFieldComponent
-      icon={Briefcase}
-      value={formData.authorizedPerson.designation}
-      onChange={(val) => handleInputChange('authorizedPerson', 'designation', val)}
-      placeholder="Designation *"
-      error={validationErrors.designation}
-      required
-    />
-
-    {/* Email */}
-    <InputFieldComponent
-      icon={Mail}
-      value={formData.authorizedPerson.email}
-      onChange={(val) => handleInputChange('authorizedPerson', 'email', val)}
-      placeholder="Direct Email *"
-      error={validationErrors.authEmail}
-      type="email"
-      required
-    />
-
-    {/* Phone */}
-    <PhoneInputWithCountryCode
-      value={formData.authorizedPerson.phone}
-      onChange={(val) => handleInputChange('authorizedPerson', 'phone', val)}
-      placeholder="Mobile Number"
-      error={validationErrors.authPhone}
-      required={true}
-      selectedCode={selectedAuthCountryCode}
-      onCodeChange={setSelectedAuthCountryCode}
-      showDropdown={showAuthCountryDropdown}
-      setShowDropdown={setShowAuthCountryDropdown}
-     
-    />
-
-    {/* ID Proof */}
-    <div className="md:col-span-2 xl:col-span-2">
-      <InputFieldComponent
-        icon={ShieldCheck}
-        value={formData.authorizedPerson.idProofNumber}
-        onChange={(val) => handleInputChange('authorizedPerson', 'idProofNumber', val)}
-        placeholder="Government ID Proof Number (PAN/Aadhar/Passport) *"
-        error={validationErrors.idProofNumber}
-        required
-      />
-    </div>
-
-  </div>
-</section>
+                <section className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6 shadow-sm">
+                  <SectionHeader icon={UserCircle} title="Authorized Representative" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {/* Full Name */}
+                    <InputFieldComponent
+                      icon={UserCircle}
+                      value={formData.authorizedPerson.fullName}
+                      onChange={(val) => handleInputChange('authorizedPerson', 'fullName', val)}
+                      placeholder="Full Name *"
+                      error={validationErrors.fullName}
+                      required
+                    />
+                    {/* Designation */}
+                    <InputFieldComponent
+                      icon={Briefcase}
+                      value={formData.authorizedPerson.designation}
+                      onChange={(val) => handleInputChange('authorizedPerson', 'designation', val)}
+                      placeholder="Designation *"
+                      error={validationErrors.designation}
+                      required
+                    />
+                    {/* Email */}
+                    <InputFieldComponent
+                      icon={Mail}
+                      value={formData.authorizedPerson.email}
+                      onChange={(val) => handleInputChange('authorizedPerson', 'email', val)}
+                      placeholder="Direct Email *"
+                      error={validationErrors.authEmail}
+                      type="email"
+                      required
+                    />
+                    {/* Phone */}
+                    <PhoneInputWithCountryCode
+                      value={formData.authorizedPerson.phone}
+                      onChange={(val) => handleInputChange('authorizedPerson', 'phone', val)}
+                      placeholder="Mobile Number"
+                      error={validationErrors.authPhone}
+                      required={true}
+                      selectedCode={selectedAuthCountryCode}
+                      onCodeChange={setSelectedAuthCountryCode}
+                      showDropdown={showAuthCountryDropdown}
+                      setShowDropdown={setShowAuthCountryDropdown}
+                    />
+                    {/* ID Proof */}
+                    <div className="md:col-span-2 xl:col-span-2">
+                      <InputFieldComponent
+                        icon={ShieldCheck}
+                        value={formData.authorizedPerson.idProofNumber}
+                        onChange={(val) => handleInputChange('authorizedPerson', 'idProofNumber', val)}
+                        placeholder="Government ID Proof Number (PAN/Aadhar/Passport) *"
+                        error={validationErrors.idProofNumber}
+                        required
+                      />
+                    </div>
+                  </div>
+                </section>
                 
                 {/* Banking Details */}
                 <section className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm">
@@ -1763,8 +1780,7 @@ export default function AdminDashboard() {
                       onChange={(val) => handleInputChange('taxInformation', 'tan', val)}
                       placeholder="TAN (Tax Deduction Account Number)"
                     />
-
-                      <InputFieldComponent
+                    <InputFieldComponent
                       icon={Hash}
                       value={formData.taxInformation.gst}
                       onChange={(val) => handleInputChange('taxInformation', 'gst', val)}
@@ -1780,9 +1796,6 @@ export default function AdminDashboard() {
                       error={validationErrors.pan}
                       required
                     />
-                  
-                  
-                    
                   </div>
                 </section>
                 
@@ -1823,7 +1836,7 @@ export default function AdminDashboard() {
         </div>
       )}
       
-      {/* Branch Modal */}
+      {/* Branch Modal - Updated with Latitude, Longitude and Radius fields */}
       {showBranchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowBranchModal(false)}></div>
@@ -1854,6 +1867,41 @@ export default function AdminDashboard() {
               </div>
               <InputComponent label="Branch Name" icon={MapPin} value={newBranch.name} onChange={e => setNewBranch({ ...newBranch, name: e.target.value })} required placeholder="e.g., Downtown Office" />
               <InputComponent label="Location" icon={MapPin} value={newBranch.location} onChange={e => setNewBranch({ ...newBranch, location: e.target.value })} required placeholder="e.g., New York, NY" />
+              
+              {/* New fields: Latitude, Longitude, Radius */}
+              <div className="grid grid-cols-2 gap-3">
+                <InputComponent 
+                  label="Latitude" 
+                  icon={MapPinned} 
+                  value={newBranch.lattitude} 
+                  onChange={e => setNewBranch({ ...newBranch, lattitude: e.target.value })} 
+                  required 
+                  placeholder="e.g., 20.345" 
+                  type="number"
+                  step="any"
+                />
+                <InputComponent 
+                  label="Longitude" 
+                  icon={MapPinned} 
+                  value={newBranch.longitude} 
+                  onChange={e => setNewBranch({ ...newBranch, longitude: e.target.value })} 
+                  required 
+                  placeholder="e.g., 20.111" 
+                  type="number"
+                  step="any"
+                />
+              </div>
+              <InputComponent 
+                label="Radius (in meters)" 
+                icon={TrendingUp} 
+                value={newBranch.radius} 
+                onChange={e => setNewBranch({ ...newBranch, radius: e.target.value })} 
+                required 
+                placeholder="e.g., 20" 
+                type="number"
+                step="1"
+              />
+              
               <div className="flex gap-3 pt-4">
                 <Button variant="secondary" onClick={() => setShowBranchModal(false)} className="flex-1">Cancel</Button>
                 <Button type="submit" className="flex-1">Create Branch</Button>
